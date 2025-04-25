@@ -22,9 +22,43 @@ class VLE(Equilibria):
         Initialize the Partition class.
         '''
         self.__model_source = model_source
+        self.__datasource = {
+        } if model_source is None else model_source['datasource']
+        self.__equationsource = {
+        } if model_source is None else model_source['equationsource']
 
         # init class
         Equilibria.__init__(self, components)
+
+    @property
+    def datasource(self) -> Dict:
+        '''
+        Get the datasource property.
+
+        Returns
+        -------
+        dict
+            The datasource dictionary.
+        '''
+        # NOTE: check if model source is valid
+        if self.__datasource is None:
+            return {}
+        return self.__datasource
+
+    @property
+    def equationsource(self) -> Dict:
+        '''
+        Get the equationsource property.
+
+        Returns
+        -------
+        dict
+            The equationsource dictionary.
+        '''
+        # NOTE: check if model source is valid
+        if self.__equationsource is None:
+            return {}
+        return self.__equationsource
 
     def bubble_pressure(self,
                         inputs: Dict[str, float],
@@ -45,7 +79,7 @@ class VLE(Equilibria):
             - mole_fraction : dict
                 Dictionary of component names and their respective mole fractions.
             - temperature : float
-                Temperature at which to calculate the bubble pressure (in Kelvin).
+                Temperature at which to calculate the bubble pressure (in Kelvin, Celsius, Fahrenheit).
         equilibrium_model : str, optional
             The equilibrium model to use for the calculation. Default is 'raoult'.
         activity_model : str, optional
@@ -53,7 +87,17 @@ class VLE(Equilibria):
         **kwargs : dict, optional
             Additional parameters for the model.
 
+        Returns
+        -------
 
+
+        Notes
+        -----
+        - Temperature must be in Kelvin, Celsius, or Fahrenheit, and will be converted to Kelvin.
+        - Mole fractions must be between 0 and 1.
+        - The function will raise a ValueError if the inputs are not valid.
+        - The default equilibrium model is 'raoult', and the default activity model is 'NRTL'.
+        - The function will return the bubble pressure in Pascals.
         '''
         try:
             # SECTION: check inputs
@@ -105,7 +149,8 @@ class VLE(Equilibria):
                 # NOTE: equation source
                 # antoine equations [Pa]
                 VaPr_eq = Source_.data_extractor(component, 'VaPr')
-                # args
+
+                # NOTE: args
                 VaPr_args = VaPr_eq.args
                 # check args (SI)
                 VaPr_args_required = Source_.check_args(VaPr_args)
@@ -126,21 +171,25 @@ class VLE(Equilibria):
                 _unit_block = f"{_VaPr_unit} => Pa"
                 _VaPr = pycuc.to(_VaPr_value, _unit_block)
                 # set
-                _vapor_pressure.append(_VaPr)
+                VaPr_comp[component] = {
+                    "value": _VaPr,
+                    "unit": "Pa"}
 
             # NOTE: parameters
             params = {
+                "components": components,
                 "mole_fraction": np.array(mole_fractions),
-                "temperature": temperature,
-                "vapor_pressure": {
-                    "equation": VaPr_eq,
+                "temperature": {
+                    "value": temperature,
+                    "unit": "K"
                 },
+                "vapor_pressure": VaPr_comp,
                 "equilibrium_model": equilibrium_model,
                 "activity_model": activity_model
             }
 
             # res
-            return self.bubblePressure(params)
+            return self.BP(params)
         except Exception as e:
             raise ValueError(
                 f"Error in bubble_pressure calculation: {e}")

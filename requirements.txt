@@ -1,0 +1,9 @@
+numpy
+scipy
+matplotlib
+pandas
+PyYAML
+pythermodb
+pythermolinkdb
+pythermomodels
+pycuc

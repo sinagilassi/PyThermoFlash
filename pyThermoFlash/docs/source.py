@@ -18,12 +18,44 @@ class Source:
 
         # NOTE: source
         # set
-        self.datasource = model_source.get(DATASOURCE, None)
-        self.equationsource = model_source.get(EQUATIONSOURCE, None)
+        self.__datasource = {
+        } if model_source is None else model_source[DATASOURCE]
+        self.__equationsource = {
+        } if model_source is None else model_source[EQUATIONSOURCE]
 
     def __repr__(self):
         des = "Source class for the pyThermoFlash package."
         return des
+
+    @property
+    def datasource(self) -> Dict:
+        '''
+        Get the datasource property.
+
+        Returns
+        -------
+        dict
+            The datasource dictionary.
+        '''
+        # NOTE: check if model source is valid
+        if self.__datasource is None:
+            return {}
+        return self.__datasource
+
+    @property
+    def equationsource(self) -> Dict:
+        '''
+        Get the equationsource property.
+
+        Returns
+        -------
+        dict
+            The equationsource dictionary.
+        '''
+        # NOTE: check if model source is valid
+        if self.__equationsource is None:
+            return {}
+        return self.__equationsource
 
     def eq_extractor(self, component_name: str, prop_name: str):
         '''
@@ -44,11 +76,11 @@ class Source:
         if self.__model_source is None:
             raise ValueError("Model source is not defined.")
 
-        if prop_name not in self.__model_source[self.EQUATIONSOURCE]:
+        if prop_name not in self.__model_source[EQUATIONSOURCE]:
             raise ValueError(
                 f"Property '{prop_name}' not found in model source.")
 
-        return self.__model_source[self.EQUATIONSOURCE][component_name][prop_name]
+        return self.__model_source[EQUATIONSOURCE][component_name][prop_name]
 
     def data_extractor(self, component_name: str, prop_name: str):
         '''
@@ -66,14 +98,14 @@ class Source:
         dict
             The extracted property.
         '''
-        if self.__model_source is None:
-            raise ValueError("Model source is not defined.")
+        if self.datasource is None:
+            return None
 
-        if prop_name not in self.__model_source[self.DATASOURCE]:
+        if prop_name not in self.datasource.keys():
             raise ValueError(
-                f"Property '{prop_name}' not found in model source.")
+                f"Property '{prop_name}' not found in model datasource.")
 
-        return self.__model_source[self.DATASOURCE][component_name][prop_name]
+        return self.datasource[component_name][prop_name]
 
     def check_args(self, args):
         '''
