@@ -1,37 +1,39 @@
-# APP CONSTANTS
+# CONSTANTS
 # --------------
-
-# import packages/modules
+# import libs
 import math
 
-#! eos names
+# NOTE: eos models
 PENG_ROBINSON = "PR"
 REDLICH_KWONG_SOAVE = "RSK"
+REDLICH_KWONG = "RK"
 VAN_DER_WAALS = "VDW"
 
-# ! vle models
+# NOTE: assumptions
 RAOULT_MODEL = 'raoult'
 MODIFIED_RAOULT_MODEL = 'modified-raoult'
 
-# ! activity coefficient model
+# NOTE: activity coefficient model
 VAN_LAAR_ACTIVITY_MODEL = 'van-laar'
 WILSON_ACTIVITY_MODEL = 'wilson'
 
-
-# universal gas constant [J/mol.K]
+# NOTE: universal gas constant [J/mol.K]
 R_CONST = 8.314472
 
 # epsilon
 EPS_CONST = 1e-30
 
-# pi
+# NOTE: pi
 PI_CONST = math.pi
 
-#  STP condition
-#  pressure [Pa]
-Pstp = 101325
-#  temperature [K]
-Tstp = 273.15
+# NOTE: STP condition
+# pressure [Pa]
+PRESSURE_STP = 101325
+# temperature [K]
+TEMPERATURE_STP = 273.15
+# reference temperature [K]
+TEMPERATURE_REFERENCE = TEMPERATURE_STP + 25.00
 
-# reference temperature
-Tref = Tstp + 25.00
+# SECTION: PyThermoDBLink/PyThermoDB
+DATASOURCE = "datasource"
+EQUATIONSOURCE = "equationsource"
