@@ -4,7 +4,9 @@
 from typing import List, Dict, Optional
 import numpy as np
 from scipy import optimize
+import pycuc
 # local
+from .source import Source
 
 
 class Equilibria:
@@ -79,8 +81,12 @@ class Equilibria:
             z_i = params['mole_fraction']
             # temperature [K]
             T = params['temperature']
+            # equilibrium model
+            eq_model = params['equilibrium_model']
+            # fugacity model
+            fugacity_model = params['fugacity_model']
             # activity model
-            activity_model = params.get('activity_model')
+            activity_model = params['activity_model']
 
             # NOTE: vapor pressure [Pa]
             VaPr_comp = params['vapor_pressure']
@@ -187,8 +193,12 @@ class Equilibria:
             y_i = params['mole_fraction']
             # temperature [K]
             T = params['temperature']
+            # equilibrium model
+            eq_model = params['equilibrium_model']
+            # fugacity model
+            fugacity_model = params['fugacity_model']
             # activity model
-            activity_model = params.get('activity_model')
+            activity_model = params['activity_model']
 
             # NOTE: vapor pressure [Pa]
             VaPr_comp = params['vapor_pressure']
@@ -248,7 +258,7 @@ class Equilibria:
 
     def BT(self, params, **kwargs):
         '''
-        The bubble-point temperature (BT) calculation determines the temperature at which the first bubble of vapor forms when a liquid mixture is heated at a constant pressure. It helps identify the temperature at which the liquid will start vaporizing.
+        The `bubble-point temperature` (BT) calculation determines the temperature at which the first bubble of vapor forms when a liquid mixture is heated at a constant pressure. It helps identify the temperature at which the liquid will start vaporizing.
 
         Parameters
         ----------
@@ -258,6 +268,7 @@ class Equilibria:
             - P: pressure [Pa]
         kwargs : dict
             additional parameters for the calculation
+            - `guess_temperature`: initial guess temperature [K], default is 295 K
 
         Notes
         -----
@@ -278,411 +289,767 @@ class Equilibria:
             # SECTION: data
             # NOTE: params
             # mole fraction [array]
-            zi = params['mole_fraction']
+            z_i = params['mole_fraction']
             # pressure [Pa]
             P = params['pressure']
+            # equilibrium model
+            eq_model = params['equilibrium_model']
+            # fugacity model
+            fugacity_model = params['fugacity_model']
             # activity model
             activity_model = params['activity_model']
 
-            # NOTE: config
-            Tg0 = kwargs.get('Tg0', 295)
+            # SECTION: vapor pressure calculation
+            # NOTE: vapor pressure equation [Pa]
+            VaPr_comp = params['vapor_pressure']
 
+            # NOTE: kwargs
+            # temperature guess [K]
+            T_g0 = kwargs.get('guess_temperature', 295)
+
+            # SECTION: optimization
             # params
-            _params = (self.comp_num, zi, P, VaPeCal)
+            _params = {
+                'mole_fraction': z_i,
+                'pressure': P,
+                'vapor_pressure': VaPr_comp
+            }
 
             # NOTE: bubble temperature [K]
-            _res0 = optimize.fsolve(self.btFunction, Tg0, args=(_params,))
+            _res0 = optimize.fsolve(self.fBT, T_g0, args=(_params,))
+            # check if root found
+            if _res0.success is False:
+                raise Exception('root not found!')
             # ->
             # REVIEW
             T = _res0[0]
 
             # NOTE: vapor pressure [Pa]
             # at T (Tg)
-            VaPe = np.zeros(self.comp_num)
-            for i in range(self.comp_num):
-                # REVIEW
-                VaPe[i] = self.pool[i].vapor_pressure(T, VaPeCal)
+            VaPr = np.zeros(self.comp_num)
+
+            # looping over components
+            for i, component in enumerate(self.components):
+                # vapor pressure [Pa]
+                eq_ = VaPr_comp[component]['value']
+                args_ = VaPr_comp[component]['args']
+                # update args
+                args_['T'] = T
+                # cal
+                res_ = eq_(**args_)
+                # extract
+                res_value_ = res_['value']
+                res_unit_ = res_['unit']
+                # convert to Pa
+                unit_block_ = f"{res_unit_} => Pa"
+                VaPr_ = pycuc.to(res_value_, unit_block_)
+                # set
+                VaPr[i] = VaPr_
 
             # vapor mole fraction
             yi = np.zeros(self.comp_num)
             for i in range(self.comp_num):
-                yi[i] = zi[i]*VaPe[i]/P
+                yi[i] = z_i[i]*VaPr[i]/P
 
-            _res = {
-                "T": T,
-                "yi": yi,
-                'xi': zi,
-                "VaPe": VaPe
+            # NOTE: k-ratio
+            K_i = np.multiply(yi, 1/z_i)
+
+            # NOTE: results
+            res = {
+                "bubble_temperature": {
+                    "value": T,
+                    "unit": "K"
+                },
+                "pressure": {
+                    "value": P,
+                    "unit": "Pa"
+                },
+                "feed_mole_fraction": z_i,
+                "vapor_mole_fraction": yi,
+                "vapor_pressure": {
+                    "value": VaPr,
+                    "unit": "Pa"
+                },
+                "K_ratio": {
+                    "value": K_i,
+                    "unit": "dimensionless"
+                }
             }
 
             # res
-            return _res
+            return res
         except Exception as e:
             raise Exception(e)
 
-    def btFunction(self, x, params):
+    def fBT(self, x, params) -> float:
         '''
-        args:
-            x: guess temperature *** array *** [K]
-        '''
-        # Tg
-        Tg = x[0]
-        # params
-        compNo, zi, P, VaPeCal = params
-        # calculate vapor-pressure
+        bubble temperature function
 
+        Parameters
+        ----------
+        x : array-like
+            Guess temperature [K]
+        params : dict
+            Dictionary containing the following:
+            - mole_fraction : liquid mole fraction (xi)
+            - pressure : pressure [Pa]
+            - vapor_pressure : vapor pressure equation [Pa]
+        '''
+        # NOTE: temperature (loop)
+        T = x[0]
+
+        # NOTE: params
+        # mole fraction [array]
+        z_i = params['mole_fraction']
+        # pressure [Pa]
+        P = params['pressure']
+        # vapor pressure calculation
+        VaPr_comp = params['vapor_pressure']
+
+        # NOTE: calculate vapor-pressure
         # vapor pressure [Pa]
-        VaPe = np.zeros(compNo)
-        for i in range(compNo):
-            # REVIEW
-            VaPe[i] = self.pool[i].vapor_pressure(Tg, VaPeCal)
+        VaPr_i = np.zeros(self.component_num)
 
-        # bubble pressure [Pa]
-        BuPr = np.dot(zi, VaPe)
+        # looping over components
+        for i, component in enumerate(self.components):
+            # vapor pressure [?]
+            eq_ = VaPr_comp[component]['value']
+            args_ = VaPr_comp[component]['args']
+            # update args
+            args_['T'] = T
+            # cal
+            res_ = eq_(**args_)
+            # extract
+            res_value_ = res_['value']
+            res_unit_ = res_['unit']
+            # convert to Pa
+            unit_block_ = f"{res_unit_} => Pa"
+            VaPr_ = pycuc.to(res_value_, unit_block_)
 
-        # loss
+            # save
+            VaPr_i[i] = VaPr_
+
+        # NOTE: bubble pressure [Pa]
+        BuPr = np.dot(z_i, VaPr_i)
+
+        # NOTE: loss
         loss = abs((P/BuPr) - 1)
 
         return loss
 
-    def cal_dew_temperature(self, params, config):
+    def DT(self, params, **kwargs):
         '''
-        dew temperature calculation
+        The `dew-point temperature` (DT) calculation determines the temperature at which the first drop of liquid condenses when a vapor mixture is cooled at a constant pressure. It identifies the temperature at which vapor will start to condense.
 
-        args:
-            params:
-                1. feed mole fraction *** array *** (zi=xi)
-                2. system pressure [Pa]
-            config:
-                1. Tg0: initial guess temperature
-                2. VaPeCal: vapor-pressure calculation method (default: polynomial)
+        Parameters
+        ----------
+        params : dict
+            Dictionary containing the following:
+            - zi : vapor mole fraction (yi)
+            - P: pressure [Pa]
+        kwargs : dict
+            additional parameters for the calculation
+            - `guess_temperature`: initial guess temperature [K], default is 295 K
 
-        knowns:
-            1. P
-            2. z[i] = y[i]
+        Returns
+        -------
 
-        unknowns:
-            1. T (dew temperature)
-            2. y[i]
 
-        solutions:
-            1. guess Tg
-            2. cal P[i,sat] at Tg
-            3. cal bubble pressure Pb at Tg
-            4. check Pb equals P
-            4. cal x[i]
+
+        Notes
+        -----
+        The summary of the calculation is as follows:
+
+        - Known Information: Pressure (P) and mole fraction of the components in the vapor phase (yi).
+        then zi = yi.
+        - Computed Information: Temperature (T) and mole fraction in the liquid phase (xi).
+
+        The solution is obtained by the following steps:
+            1. Choose an initial guess for the dew-point temperature (Tg).
+            2. Calculate the vapor pressure of each component at the guessed temperature (Tg).
+            3. Calculate the dew pressure (Pb) using `Raoult's law` or other methods.
+            4. Check if the calculated dew pressure (Pb) equals the given pressure (P).
+            5. Calculate the liquid mole fraction (xi) using `Raoult's law` or other methods.
         '''
         try:
-            # params
-            zi = params.get('zi', [])
-            P = params.get('P', 0)
+            # SECTION: data
+            # NOTE: params
+            # mole fraction [array]
+            z_i = params['mole_fraction']
+            # pressure [Pa]
+            P = params['pressure']
+            # equilibrium model
+            eq_model = params['equilibrium_model']
+            # fugacity model
+            fugacity_model = params['fugacity_model']
+            # activity model
+            activity_model = params['activity_model']
+            # solver method
+            solver_method = params['solver_method']
 
-            # config
-            VaPeCal = config.get('VaPeCal', 'polynomial')
-            Tg0 = config.get('Tg0', 295)
+            # SECTION: vapor pressure calculation
+            # NOTE: vapor pressure equation [Pa]
+            VaPr_comp = params['vapor_pressure']
 
+            # NOTE: kwargs
+            # temperature guess [K]
+            T_g0 = kwargs.get('guess_temperature', 295)
+
+            # SECTION: optimization
             # params
-            _params = (self.comp_num, zi, P, VaPeCal)
+            _params = {
+                'mole_fraction': z_i,
+                'pressure': P,
+                'vapor_pressure': VaPr_comp
+            }
+
             # bubble pressure [Pa]
-            _res0 = optimize.fsolve(self.dtFunction, Tg0, args=(_params,))
+            _res0 = optimize.fsolve(self.fDT, T_g0, args=(_params))
+            # check if root found
+            if _res0.success is False:
+                raise Exception('root not found!')
             # ->
             # REVIEW
-            Tg = _res0[0]
+            T = _res0[0]
 
-            # vapor pressure [Pa]
+            # NOTE: vapor pressure [Pa]
             # at T (Tg)
-            VaPe = np.zeros(self.comp_num)
-            for i in range(self.comp_num):
-                # REVIEW
-                VaPe[i] = self.pool[i].vapor_pressure(Tg, VaPeCal)
+            VaPr_i = np.zeros(self.comp_num)
 
-            # vapor mole fraction
+            # looping over components
+            for i, component in enumerate(self.components):
+                # vapor pressure [?]
+                eq_ = VaPr_comp[component]['value']
+                args_ = VaPr_comp[component]['args']
+                # update args
+                args_['T'] = T
+                # cal
+                res_ = eq_(**args_)
+                # extract
+                res_value_ = res_['value']
+                res_unit_ = res_['unit']
+                # convert to Pa
+                unit_block_ = f"{res_unit_} => Pa"
+                VaPr_ = pycuc.to(res_value_, unit_block_)
+
+                # save
+                VaPr_i[i] = VaPr_
+
+            # NOTE: vapor mole fraction
             xi = np.zeros(self.comp_num)
             for i in range(self.comp_num):
-                xi[i] = zi[i]*P/VaPe[i]
+                xi[i] = z_i[i]*P/VaPr_i[i]
+
+            # NOTE: k-ratio
+            K_i = np.multiply(xi, 1/z_i)
+
+            # NOTE: results
+            res = {
+                "dew_temperature": {
+                    "value": T,
+                    "unit": "K"
+                },
+                "pressure": {
+                    "value": P,
+                    "unit": "Pa"
+                },
+                "feed_mole_fraction": z_i,
+                "liquid_mole_fraction": xi,
+                "vapor_pressure": {
+                    "value": VaPr_i,
+                    "unit": "Pa"
+                },
+                "K_ratio": {
+                    "value": K_i,
+                    "unit": "dimensionless"
+                },
+            }
 
             # res
-            return Tg, xi, VaPe
+            return res
         except Exception as e:
             raise Exception(e)
 
-    def dtFunction(self, Tg, params):
+    def fDT(self, x, params) -> float:
         '''
-        args:
-            Tg: guess temperature [K]
-        '''
-        # params
-        compNo, zi, P, VaPeCal = params
-        # calculate vapor-pressure
+        dew temperature function
 
+        Parameters
+        ----------
+        x : array-like
+            Guess temperature [K]
+        params : dict
+            Dictionary containing the following:
+            - mole_fraction : liquid mole fraction (xi)
+            - pressure : pressure [Pa]
+            - vapor_pressure : vapor pressure equation [Pa]
+        '''
+        # NOTE: temperature (loop)
+        T = x[0]
+
+        # NOTE: params
+        # mole fraction [array]
+        z_i = params['mole_fraction']
+        # pressure [Pa]
+        P = params['pressure']
+        # vapor pressure calculation
+        VaPr_comp = params['vapor_pressure']
+
+        # NOTE: calculate vapor-pressure
         # vapor pressure [Pa]
-        VaPe = np.zeros(compNo)
-        for i in range(compNo):
-            # REVIEW
-            VaPe[i] = self.pool[i].vapor_pressure(Tg, VaPeCal)
+        VaPr_i = np.zeros(self.component_num)
 
-        # dew pressure [Pa]
-        DePr = np.dot(zi, VaPe)
+        # looping over components
+        for i, component in enumerate(self.components):
+            # vapor pressure [?]
+            eq_ = VaPr_comp[component]['value']
+            args_ = VaPr_comp[component]['args']
+            # update args
+            args_['T'] = T
+            # cal
+            res_ = eq_(**args_)
+            # extract
+            res_value_ = res_['value']
+            res_unit_ = res_['unit']
+            # convert to Pa
+            unit_block_ = f"{res_unit_} => Pa"
+            VaPr_ = pycuc.to(res_value_, unit_block_)
 
-        # loss
+            # save
+            VaPr_i[i] = VaPr_
+
+        # NOTE: dew pressure [Pa]
+        DePr = np.dot(z_i, VaPr_i)
+
+        # NOTE: loss function
         loss = abs((P/DePr) - 1)
 
         return loss
 
-    def vapor_pressure_mixture(self, T, mode):
+    def __cal_bubble_pressure(self, xi: np.ndarray, VaPr: np.ndarray) -> float:
         '''
-        calculate mixture vapor-pressure
-        '''
-        # vapor pressure [Pa]
-        VaPe = np.zeros(self.comp_num)
-        for i in range(self.comp_num):
-            # REVIEW
-            VaPe[i] = self.pool[i].vapor_pressure(T, mode)
+        Calculate bubble pressure
 
-        # res
-        return VaPe
+        Parameters
+        ----------
+        xi : array-like
+            Liquid mole fraction of each component in the mixture.
+        VaPr : array-like
+            Vapor pressure of each component in the mixture.
 
-    def bubble_pressure(self, xi, VaPe):
-        '''
-        calculate bubble pressure
-
-        args:
-            xi: liquid mole fraction
-            VaPe: vapor-pressure [Pa]
+        Returns
+        -------
+        BuPr : float
+            Bubble pressure of the mixture.
         '''
         # bubble pressure
-        BuPr = np.dot(xi, VaPe)
+        BuPr = np.dot(xi, VaPr)
 
         # res
         return BuPr
 
-    def dew_pressure(self, yi, VaPe):
+    def __cal_dew_pressure(self, yi: np.ndarray, VaPr: np.ndarray) -> float:
         '''
-        calculate dew pressure
+        Calculate dew pressure
+
+        Parameters
+        ----------
+        yi : array-like
+            Vapor mole fraction of each component in the mixture.
+        VaPr : array-like
+            Vapor pressure of each component in the mixture.
+
+        Returns
+        -------
+        DePr : float
+            Dew pressure of the mixture.
         '''
         # dew-point pressure
-        DePr = 1/np.dot(yi, 1/VaPe)
+        DePr = 1/np.dot(yi, 1/VaPr)
 
         # res
         return DePr
 
-    def cal_flash_isothermal(self, params, config):
+    def __flash_checker(self, z_i: List[float], Pf: float, Tf: float, VaPr_comp: Dict) -> bool:
         '''
-        isothermal flash calculation
+        Check if the flash occurs at the given pressure and temperature according to the bubble and dew pressures of the mixture.
 
-        knowns:
-            1. zi
-            2. P
-            3. T
+        Parameters
+        ----------
+        z_i : list
+            Feed mole fraction of each component in the mixture.
+        Pf : float
+            Flash pressure [Pa]
+        Tf : float
+            Flash temperature [K]
+        VaPr_comp : dict
+            Dictionary containing the vapor pressure equations for each component.
 
-        unknowns:
-            1. xi
-            2. yi
-            3. V
-            4. L
+        Returns
+        -------
+        bool
+            True if the pressure and temperature are valid, False otherwise.
+
+        Notes
+        -----
+        Assumption are as:
+
+        - The system is in equilibrium.
+        - The vapor pressure of each component is calculated using the provided equations.
+        - The bubble pressure is calculated using Raoult's law.
+        - The dew pressure is calculated using Raoult's law.
         '''
         try:
-            # params
-            zi = params.get('zi', [])
-            P_flash = params.get('P_flash', 0)
-            T_flash = params.get('T_flash', 0)
-            VaPri = params.get('VaPe', [])
+            # NOTE: vapor pressure [Pa]
+            VaPr_i = np.zeros(self.comp_num)
 
-            # config
-            VaPeCal = config.get('VaPeCal', 'polynomial')
-            V_F_ratio_g0 = config.get('guess_V_F_ratio', 0.5)
+            # looping over components
+            for i, component in enumerate(self.components):
+                # vapor pressure [?]
+                eq_ = VaPr_comp[component]['value']
+                args_ = VaPr_comp[component]['args']
+                # update args
+                args_['T'] = Tf
+                # cal
+                res_ = eq_(**args_)
+                # extract
+                res_value_ = res_['value']
+                res_unit_ = res_['unit']
+                # convert to Pa
+                unit_block_ = f"{res_unit_} => Pa"
+                VaPr_ = pycuc.to(res_value_, unit_block_)
+                # save
+                VaPr_i[i] = VaPr_
 
-            # ki ratio (Raoult's law)
-            Ki = VaPri/P_flash
+            # NOTE: calculate bubble pressure
+            BuPr = self.__cal_bubble_pressure(z_i, VaPr_i)
+            # NOTE: calculate dew pressure
+            DePr = self.__cal_dew_pressure(z_i, VaPr_i)
 
-            # params
-            _params = (self.comp_num, zi, Ki)
-            # V/F
-            _res0 = optimize.fsolve(
-                self.fitFunction, V_F_ratio_g0, args=(_params,))
-            # ->
-            V_F_ratio = _res0[0]
+            # NOTE: check if the given pressure and temperature are within the valid range
+            if Pf < BuPr and Pf > DePr:
+                # if the pressure is between the bubble and dew pressures, return False
+                return True
+            else:
+                # if the pressure is outside the valid range, return False
+                return False
+        except Exception as e:
+            # if any error occurs, return False
+            raise Exception(f"Error in flash checker: {e}")
 
-            # liquid/vapor mole fraction
-            xi, yi = self.xyFlash(self.comp_num, V_F_ratio, zi, Ki)
+    def IFL(self, params, **kwargs):
+        '''
+        The `isothermal-flash` (IFL) calculation This calculation determines the vapor and liquid phase compositions and amounts at a specified temperature and pressure. The system is "flashed" isothermally, meaning the temperature is kept constant while the phase behavior is calculated for a mixture.
 
-            # L/F
+        Parameters
+        ----------
+        params : dict
+            Dictionary containing the following:
+            - zi : feed mole fraction (zi)
+            - P: pressure [Pa]
+            - T: temperature [K]
+        kwargs : dict
+            additional parameters for the calculation
+            - `guess_V_F_ratio`: initial guess for the vapor-to-liquid ratio (V/F), default is 0.5
+
+
+        Returns
+        -------
+
+
+
+        Notes
+        -----
+        The summary of the calculation is as follows:
+
+        - Known Information: Temperature (T), pressure (P), and mole fraction of the components in the liquid phase (zi).
+        - Computed Information: Vapor-to-liquid ratio (V/F), liquid mole fraction (xi), vapor mole fraction (yi), and liquid-to-vapor ratio (L/F).
+
+        The solution is obtained by the following steps:
+            1. Calculate the K ratio (Ki) using Raoult's law.
+            2. Choose an initial guess for the vapor-to-liquid ratio (V/F).
+            3. Solve a system of non-linear equations to find the V/F ratio that satisfies the mass balance equations.
+            4. Calculate the liquid and vapor mole fractions (xi and yi) using the V/F ratio and K ratio.
+            5. Calculate the liquid-to-vapor ratio (L/F) from the V/F ratio.
+        '''
+        try:
+            # SECTION: data
+            # NOTE: params
+            # mole fraction [array]
+            z_i = params['mole_fraction']
+            # pressure [Pa]
+            P = params['pressure']
+            # temperature [K]
+            T = params['temperature']
+            # equilibrium model
+            eq_model = params['equilibrium_model']
+            # fugacity model
+            fugacity_model = params['fugacity_model']
+            # activity model
+            activity_model = params['activity_model']
+            # solver method
+            solver_method = params['solver_method']
+
+            # SECTION: vapor pressure calculation
+            # NOTE: vapor pressure equation [Pa]
+            VaPr_comp = params['vapor_pressure']
+
+            # NOTE: kwarg
+            # V/F guess [dimensionless]
+            V_F_ratio_g0 = kwargs.get('guess_V_F_ratio', 0.5)
+
+            # NOTE: ki ratio (Raoult's law)
+            # pressure and temperature are constant (Raoutl's law)
+            K_i = np.zeros(self.component_num)
+
+            # vapor pressure [Pa]
+            VaPr_i = np.zeros(self.component_num)
+
+            # looping over components
+            for i, component in enumerate(self.components):
+                # vapor pressure [?]
+                eq_ = VaPr_comp[component]['value']
+                args_ = VaPr_comp[component]['args']
+                # update args
+                args_['T'] = T
+                # cal
+                res_ = eq_(**args_)
+                # extract
+                res_value_ = res_['value']
+                res_unit_ = res_['unit']
+                # convert to Pa
+                unit_block_ = f"{res_unit_} => Pa"
+                VaPr_ = pycuc.to(res_value_, unit_block_)
+                # set
+                VaPr_i[i] = VaPr_
+                K_i[i] = VaPr_/P
+
+            # SECTION: optimization
+            # NOTE: set params
+            _params = {
+                'mole_fraction': z_i,
+                'K_ratio': K_i
+            }
+
+            # NOTE: check solver method
+            if solver_method == 'fsolve':
+                # V/F
+                _res = optimize.fsolve(
+                    self.fIFL, V_F_ratio_g0, args=(_params,))
+                # check if root found
+                if _res.success is False:
+                    raise Exception('root not found!')
+                # ->
+                V_F_ratio = _res[0]
+            elif solver_method == 'minimize':
+                # NOTE: constraint in case x_i and y_i
+                # used for non-isothermal and non-ideal systems
+
+                # bounds
+                bounds = [(1e-6, 1 - 1e-6)]
+                # constraints
+                cons = [self.constraint_sum_x(
+                    z_i, K_i), self.constraint_sum_y(z_i, K_i)]
+
+                # V/F
+                _res = optimize.minimize(
+                    self.fIFL2,
+                    x0=[V_F_ratio_g0],
+                    args=(z_i, K_i,),
+                    constraints=cons,
+                    bounds=bounds,)
+
+                # check if root found
+                if _res.success is False:
+                    raise Exception(f'root not found! {_res.message}')
+                # ->
+                V_F_ratio = _res.x[0]
+
+            # SECTION: liquid/vapor mole fraction
+            xy_ = self.xyFlash(V_F_ratio, z_i, K_i)
+            # set
+            xi = xy_['liquid']
+            yi = xy_['vapor']
+
+            # NOTE: calculate L/F
             L_F_ratio = 1 - V_F_ratio
 
+            # NOTE: results
+            res = {
+                "feed_mole_fraction": z_i,
+                "V_F_ratio": {
+                    "value": V_F_ratio,
+                    "unit": "dimensionless"
+                },
+                "L_F_ratio": {
+                    "value": L_F_ratio,
+                    "unit": "dimensionless"
+                },
+                "liquid_mole_fraction": xi,
+                "vapor_mole_fraction": yi,
+                "vapor_pressure": {
+                    "value": VaPr_i,
+                    "unit": "Pa"
+                },
+                "K_ratio": {
+                    "value": K_i,
+                    "unit": "dimensionless"
+                },
+                "temperature": {
+                    "value": T,
+                    "unit": "K"
+                },
+                "pressure": {
+                    "value": P,
+                    "unit": "Pa"
+                },
+                "solver_method": solver_method
+            }
+
             # res
-            return V_F_ratio, L_F_ratio, xi, yi
-
+            return res
         except Exception as e:
-            raise Exception("flash isothermal failed!")
+            raise Exception(f"flash isothermal failed! {e}")
 
-    def fitFunction(self, x, params):
+    def fIFL(self, x, params):
         '''
-        flash isothermal function
+        Flash isothermal function
 
-        args:
-            x: V/F guess
-            params:
-                zi: feed mole fraction
-                Ki: K ratio
+        Parameters
+        ----------
+        x : array-like
+            V/F guess [dimensionless]
+        params : tuple
+            Tuple containing the following:
+            - zi : feed mole fraction [dimensionless]
+            - Ki : K ratio [dimensionless]
         '''
-        # V/F
+        # NOTE: V/F
         V_F_ratio = x[0]
 
-        # params
-        compNo, zi, Ki = params
+        # NOTE: params
+        z_i = params['mole_fraction']
+        K_i = params['K_ratio']
 
-        fi = np.zeros(compNo)
-        for i in range(compNo):
-            fi[i] = (zi[i]*(1-Ki[i]))/(1+(V_F_ratio)*(Ki[i]-1))
+        # SECTION: check optimization region
+        # Avoid division by zero or invalid regions
+        if V_F_ratio <= 0 or V_F_ratio >= 1:
+            return 1e6  # Return a large value to indicate invalid region
 
-        f = np.sum(fi)
+        # NOTE: function
+        f_i = np.zeros(self.component_num)
+
+        # looping over components
+        for i in range(self.component_num):
+            f_i[i] = (z_i[i]*(1-K_i[i]))/(1+(V_F_ratio)*(K_i[i]-1))
+
+        f = np.sum(f_i)
 
         return f
 
-    def xyFlash(self, compNo, V_F_ratio, zi, Ki):
+    def xy_flash(self, V_F_ratio: float, z_i: np.ndarray, K_i: np.ndarray) -> Dict[str, np.ndarray]:
         '''
-        calculate liquid/vapor mole fraction
-        '''
-        xi = np.zeros(compNo)
-        yi = np.zeros(compNo)
+        Calculate liquid/vapor mole fraction (xi, yi) using V/F ratio and K ratio.
 
-        for i in range(compNo):
-            xi[i] = (zi[i])/(1+(V_F_ratio)*(Ki[i]-1))
-            yi[i] = Ki[i]*xi[i]
+        Parameters
+        ----------
+        V_F_ratio : float
+            Vapor-to-liquid ratio (V/F).
+        zi : array-like
+            Feed mole fraction of each component in the mixture.
+        Ki : array-like
+            K ratio of each component in the mixture.
 
-        # res
-        return xi, yi
-
-    def flashIsothermalV2(self, params, config):
-        '''
-        isothermal flash calculation
-
-        knowns:
-            1. zi
-            2. P
-            3. T
-
-        unknowns:
-            1. xi
-            2. yi
-            3. V
-            4. L
+        Returns
+        -------
+        dict
+            Dictionary containing the following:
+            - liquid: liquid mole fraction (xi) [dimensionless]
+            - vapor: vapor mole fraction (yi) [dimensionless]
         '''
         try:
-            # params
-            F = params.get('F', 0)
-            zi = params.get('zi', [])
-            P_flash = params.get('P_flash', 0)
-            T_flash = params.get('T_flash', 0)
-            VaPri = params.get('VaPe', [])
-
-            # config
-            VaPeCal = config.get('VaPeCal', 'polynomial')
-
-            # ki ratio (Raoult's law)
-            Ki = VaPri/P_flash
-
-            # unknown no
-            unknownNo = self.comp_num + 2
-
-            # initial guess
-            L0 = 0.001
-            V0 = 0.001
-            xi0 = np.zeros(self.comp_num)
-            for i in range(self.comp_num):
-                xi0[i] = 0.01
-            # set
-            _var0 = [L0, V0, *xi0]
-
-            # bounds
-            bU = []
-            bL = []
-            bounds = []
-            # lower
-            for i in range(unknownNo):
-                _bl = 0
-                bL.append(_bl)
-
-            # upper
-            for i in range(unknownNo):
-                _bu = 0.99
-                bU.append(_bu)
-
-            bounds = [bL, bU]
-
-            # params
-            _params = (self.comp_num, zi, F, Ki)
-            # a system of non-linear equation
-            # _res0 = optimize.fsolve(
-            #     self.fitSystemFunction, _var0, args=(_params,))
-
-            _res0 = optimize.least_squares(
-                self.fitSystemFunction, _var0, args=(_params,), bounds=bounds)
-
-            # ! check
-            if _res0.success is False:
-                raise Exception('root not found!')
-
-            # sol
-            x = _res0.x
-            # ->
-            L_sol = x[0]
-            V_sol = x[1]
-            V_F_ratio = V_sol/F
+            # init
+            x_i = np.zeros(self.component_num)
+            y_i = np.zeros(self.component_num)
 
             # liquid/vapor mole fraction
-            xi, yi = self.xyFlash(self.comp_num, V_F_ratio, zi, Ki)
-
-            # L/F
-            L_F_ratio = 1 - V_F_ratio
+            for i in range(self.component_num):
+                x_i[i] = (z_i[i])/(1+(V_F_ratio)*(K_i[i]-1))
+                y_i[i] = K_i[i]*x_i[i]
 
             # res
-            return V_F_ratio, L_F_ratio, xi, yi
-
+            return {
+                'liquid': x_i,
+                'vapor': y_i
+            }
         except Exception as e:
-            raise Exception("flash isothermal failed!")
+            raise Exception(f"Error in xy_flash calculation: {e}")
 
-    def fitSystemFunction(self, x, params):
+    def fIFL2(self, VF, params):
         '''
-        flash isothermal function (nonlinear equations)
+        Flash isothermal function (nonlinear equations)
 
-        unknowns:
-            1. L
-            2. V
-            3. x[i]
-
-        args:
-            x:
-                1. L
-                2. V
-                3. x[i]
-            params:
-                compNo: component number
-                zi: feed mole fraction
-                F: feed flowrate
-
+        Parameters
+        ----------
+        x : array-like
+            The unknowns to be solved for, including:
+            1. VF: the vapor-to-liquid ratio (V/F)
+        params : tuple
+            Tuple containing the following:
+            - zi: feed mole fraction (zi)
+            - Ki: K ratio of each component in the mixture
         '''
-        # params
-        compNo, zi, F, Ki = params
-
-        # xi
-        xi = np.zeros(compNo)
-
+        # SECTION: extract variables
         # set x
-        L = x[0]
-        V = x[1]
-        for i in range(compNo):
-            xi[i] = x[i+2]
+        VF = VF[0]
 
-        # system of nonlinear equations (NLE)
-        fi = np.zeros(compNo+2)
-        # overall mole balance
-        fi[0] = F - (L + V)
-        # component mole balance (without reaction)
-        for i in range(compNo):
+        # NOTE: params
+        # mole fraction [array]
+        z_i = params['mole_fraction']
+        # K ratio [dimensionless]
+        K_i = params['K_ratio']
+
+        # SECTION: system of nonlinear equations (NLE)
+        # equations number
+        eq_num = 2*self.component_num
+        # objectives
+        fi = np.zeros(eq_num)
+
+        # equation index
+        eq_i = 0
+
+        # NOTE: liquid mole fraction
+        # looping over components
+        for i in range(self.component_num):
             # solve the second NLE
-            fi[i+1] = F*zi[i] - (L*xi[i] + V*xi[i]*Ki[i])
-        # constraint
-        fi[-1] = np.sum(xi) - 1
+            fi[eq_i] = z_i[i] / (1 + VF*(K_i[i]-1))
+            # set index
+            eq_i += 1
 
-        return fi
+        # NOTE: vapor mole fraction
+        # looping over components
+        for i in range(self.component_num):
+            # solve the first NLE
+            fi[eq_i] = z_i[i]*K_i[i] / (1 + VF*(K_i[i]-1))
+            # set index
+            eq_i += 1
+
+        # NOTE: objective function
+        f = np.abs(np.sum(fi))
+
+        return f
+
+    def constraint_sum_x(self, z, K):
+        def inner(VF):
+            VF = VF[0]
+            xi = z / (1 + VF * (K - 1))
+            return np.sum(xi) - 1
+        return {'type': 'eq', 'fun': inner}
+
+    def constraint_sum_y(self, z, K):
+        def inner(VF):
+            VF = VF[0]
+            xi = z / (1 + VF * (K - 1))
+            yi = K * xi
+            return np.sum(yi) - 1
+        return {'type': 'eq', 'fun': inner}

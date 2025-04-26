@@ -65,9 +65,13 @@ class VLE(Equilibria):
                         equilibrium_model: Literal[
                             'raoult', 'modified-raoult', 'fugacity-ratio'
                         ] = 'raoult',
+                        fugacity_model: Literal[
+                            'vdW', 'PR', 'RK', 'SRK'
+                        ] = 'SRK',
                         activity_model: Literal[
                             'NRTL', 'UNIQUAC']
                         = 'NRTL',
+                        message: Optional[str] = None,
                         **kwargs):
         '''
         The Bubble-Pressure (BP) calculation determines the pressure at which the first bubble of vapor forms when a liquid mixture is heated at a constant temperature. It is used to find the pressure for a given temperature at which the liquid will begin to vaporize.
@@ -82,8 +86,12 @@ class VLE(Equilibria):
                 Temperature at which to calculate the bubble pressure (in Kelvin, Celsius, Fahrenheit).
         equilibrium_model : str, optional
             The equilibrium model to use for the calculation. Default is 'raoult'.
+        fugacity_model : str, optional
+            The fugacity model to use for the calculation. Default is 'SRK'.
         activity_model : str, optional
             The activity coefficient model to use for the calculation. Default is 'NRTL'.
+        message : str, optional
+            Message to display during the calculation. Default is None.
         **kwargs : dict, optional
             Additional parameters for the model.
 
@@ -141,7 +149,6 @@ class VLE(Equilibria):
             Source_ = Source(self.model_source)
 
             # NOTE: vapor pressure source
-            VaPr_eq = {}
             VaPr_comp = {}
 
             # looping through components
@@ -185,11 +192,20 @@ class VLE(Equilibria):
                 },
                 "vapor_pressure": VaPr_comp,
                 "equilibrium_model": equilibrium_model,
+                "fugacity_model": fugacity_model,
                 "activity_model": activity_model
             }
 
             # res
-            return self.BP(params)
+            res = self.BP(params)
+
+            # NOTE: set message
+            message = message if message is not None else "Bubble Pressure Calculation"
+            # add
+            res['message'] = message
+
+            # returns
+            return res
         except Exception as e:
             raise ValueError(
                 f"Error in bubble_pressure calculation: {e}")
@@ -197,152 +213,483 @@ class VLE(Equilibria):
     def dew_pressure(self):
         pass
 
-    def bubble_temperature(self, mole_fractions, pressure, guess_temperature=350, vapor_pressure_method='polynomial'):
+    def bubble_temperature(self,
+                           inputs: Dict[str, float],
+                           equilibrium_model: Literal[
+                               'raoult', 'modified-raoult', 'fugacity-ratio'
+                           ] = 'raoult',
+                           fugacity_model: Literal[
+                               'vdW', 'PR', 'RK', 'SRK'
+                           ] = 'SRK',
+                           activity_model: Literal[
+                               'NRTL', 'UNIQUAC']
+                           = 'NRTL',
+                           solver_method: Literal[
+                               'root', 'least-squares', 'newton'
+                           ] = 'root',
+                           message: Optional[str] = None,
+                           **kwargs):
         '''
-        bubble temperature calculation
+        The `bubble-point temperature` (BT) calculation determines the temperature at which the first bubble of vapor forms when a liquid mixture is heated at a constant pressure. It helps identify the temperature at which the liquid will start vaporizing.
 
-        args:
-            mole_fraction: feed mole fraction (zi=xi)
-            pressure: system pressure [Pa]
+        Parameters
+        ----------
+        inputs : dict
+            Dictionary containing the input parameters for the calculation.
+            - mole_fraction : dict
+                Dictionary of component names and their respective mole fractions.
+            - temperature : float
+                Temperature at which to calculate the bubble pressure (in Kelvin, Celsius, Fahrenheit).
+        equilibrium_model : str, optional
+            The equilibrium model to use for the calculation. Default is 'raoult'.
+        fugacity_model : str, optional
+            The fugacity model to use for the calculation. Default is 'SRK'.
+        activity_model : str, optional
+            The activity coefficient model to use for the calculation. Default is 'NRTL'.
+        solver_method : str, optional
+            The solver method to use for the calculation. Default is 'root'.
+            - 'root' : Root-finding algorithm.
+            - 'least-squares' : Least-squares optimization algorithm.
+            - 'newton' : Newton's method.
+        message : str, optional
+            Message to display during the calculation. Default is None.
+        **kwargs : dict, optional
+            Additional parameters for the model.
+            - `guess_temperature` : float
+                Initial guess for the bubble-point temperature (in Kelvin, Celsius, Fahrenheit), default is 295 K.
+
+        Returns
+        -------
+
+        Notes
+        -----
+        The summary of the calculation is as follows:
+
+        - Known Information: Pressure (P) and mole fraction of the components in the liquid phase (xi).
+        then zi = xi.
+        - Computed Information: Temperature (T) and mole fraction in the vapor phase (yi).
         '''
-        # params
-        params = {
-            "zi": np.array(mole_fractions),
-            "P": pressure
-        }
+        try:
+            # SECTION: check inputs
+            # check inputs
+            if not isinstance(inputs, dict):
+                raise ValueError("Inputs must be a dictionary.")
 
-        # config
-        config = {
-            "Tg0": guess_temperature,
-            "VaPeCal": vapor_pressure_method
-        }
+            # check keys
+            if 'mole_fraction' not in inputs or 'pressure' not in inputs:
+                raise ValueError(
+                    "Inputs must contain 'mole_fraction' and 'temperature' keys.")
 
-        # cal
-        _res = self.bubbleTemperature(params, config)
+            # NOTE: set inputs - dict
+            mole_fractions = inputs['mole_fraction']
+            # NOTE: pressure [Pa]
+            pressure = pycuc.convert_from_to(
+                inputs['pressure'][0], inputs['pressure'][1], 'Pa')
 
-        # res
-        return _res
+            # check mole fractions
+            if not isinstance(mole_fractions, dict):
+                raise ValueError("Mole fractions must be a dictionary.")
 
-    def dew_temperature(self, mole_fractions, pressure, guess_temperature=350, vapor_pressure_method='polynomial'):
+            if not all(isinstance(v, (int, float)) for v in mole_fractions.values()):
+                raise ValueError("Mole fractions must be numeric.")
+
+            if not all(0 <= v <= 1 for v in mole_fractions.values()):
+                raise ValueError("Mole fractions must be between 0 and 1.")
+
+            # check temperature
+            if not isinstance(pressure, (int, float)):
+                raise ValueError("pressure must be numeric.")
+
+            # NOTE: components
+            components = self.components
+
+            # mole fractions based on components id
+            mole_fractions = [mole_fractions[component]
+                              for component in components]
+
+            # SECTION: extract source
+            Source_ = Source(self.model_source)
+
+            # NOTE: vapor pressure source
+            VaPr_comp = {}
+
+            # looping through components
+            for component in components:
+                # NOTE: equation source
+                # antoine equations [Pa]
+                VaPr_eq = Source_.data_extractor(component, 'VaPr')
+
+                # NOTE: args
+                VaPr_args = VaPr_eq.args
+                # check args (SI)
+                VaPr_args_required = Source_.check_args(VaPr_args)
+
+                # build args
+                _VaPr_args = Source_.build_args(VaPr_args_required)
+
+                # NOTE: update P and T
+                _VaPr_args['T'] = None
+
+                # set
+                VaPr_comp[component] = {
+                    "value": VaPr_eq,
+                    "args": VaPr_args,
+                    "return": VaPr_eq.returns
+                }
+
+            # NOTE: parameters
+            params = {
+                "components": components,
+                "mole_fraction": np.array(mole_fractions),
+                "pressure": {
+                    "value": pressure,
+                    "unit": "Pa"
+                },
+                "vapor_pressure": VaPr_comp,
+                "equilibrium_model": equilibrium_model,
+                "fugacity_model": fugacity_model,
+                "activity_model": activity_model,
+                "solver_method": solver_method
+            }
+
+            # res
+            res = self.BT(params, **kwargs)
+
+            # NOTE: set message
+            message = message if message is not None else "Bubble Temperature Calculation"
+            # add
+            res['message'] = message
+
+            # returns
+            return res
+        except Exception as e:
+            raise Exception(
+                f"Error in bubble_temperature calculation: {e}")
+
+    def dew_temperature(self,
+                        inputs: Dict[str, float],
+                        equilibrium_model: Literal[
+                            'raoult', 'modified-raoult', 'fugacity-ratio'
+                        ] = 'raoult',
+                        fugacity_model: Literal[
+                            'vdW', 'PR', 'RK', 'SRK'
+                        ] = 'SRK',
+                        activity_model: Literal[
+                            'NRTL', 'UNIQUAC']
+                        = 'NRTL',
+                        solver_method: Literal[
+                            'root', 'least-squares', 'newton'
+                        ] = 'root',
+                        message: Optional[str] = None,
+                        **kwargs):
         '''
-        bubble temperature calculation
+        The `dew-point temperature` (DT) calculation determines the temperature at which the first drop of liquid condenses when a vapor mixture is cooled at a constant pressure. It identifies the temperature at which vapor will start to condense.
 
-        args:
-            mole_fraction: feed mole fraction (zi=xi)
-            pressure: system pressure [Pa]
+        Parameters
+        ----------
+        inputs : dict
+            Dictionary containing the input parameters for the calculation.
+            - mole_fraction : dict
+                Dictionary of component names and their respective mole fractions.
+            - temperature : float
+                Temperature at which to calculate the bubble pressure (in Kelvin, Celsius, Fahrenheit).
+        equilibrium_model : str, optional
+            The equilibrium model to use for the calculation. Default is 'raoult'.
+        fugacity_model : str, optional
+            The fugacity model to use for the calculation. Default is 'SRK'.
+        activity_model : str, optional
+            The activity coefficient model to use for the calculation. Default is 'NRTL'.
+        solver_method : str, optional
+            The solver method to use for the calculation. Default is 'root'.
+            - 'root' : Root-finding algorithm.
+            - 'least-squares' : Least-squares optimization algorithm.
+            - 'newton' : Newton's method.
+        message : str, optional
+            Message to display during the calculation. Default is None.
+        **kwargs : dict, optional
+            Additional parameters for the model.
+            - `guess_temperature` : float
+                Initial guess for the bubble-point temperature (in Kelvin, Celsius, Fahrenheit), default is 295 K.
+
+        Returns
+        -------
+
+
+        Notes
+        -----
+        The summary of the calculation is as follows:
+
+        - Known Information: Pressure (P) and mole fraction of the components in the vapor phase (yi).
+        then zi = yi.
+        - Computed Information: Temperature (T) and mole fraction in the liquid phase (xi).
         '''
-        # params
-        params = {
-            "zi": np.array(mole_fractions),
-            "P": pressure
-        }
+        try:
+            # SECTION: check inputs
+            # check inputs
+            if not isinstance(inputs, dict):
+                raise ValueError("Inputs must be a dictionary.")
 
-        # config
-        config = {
-            "Tg0": guess_temperature,
-            "VaPeCal": vapor_pressure_method
-        }
+            # check keys
+            if 'mole_fraction' not in inputs or 'pressure' not in inputs:
+                raise ValueError(
+                    "Inputs must contain 'mole_fraction' and 'temperature' keys.")
 
-        # cal
-        _res = self.dewTemperature(params, config)
+            # NOTE: set inputs - dict
+            mole_fractions = inputs['mole_fraction']
+            # NOTE: pressure [Pa]
+            pressure = pycuc.convert_from_to(
+                inputs['pressure'][0], inputs['pressure'][1], 'Pa')
 
-        # res
-        return _res
+            # check mole fractions
+            if not isinstance(mole_fractions, dict):
+                raise ValueError("Mole fractions must be a dictionary.")
 
-    def flash_isothermal(self, mole_fractions, flash_pressure, flash_temperature, feed_pressure, feed_flowrate=1, guess_V_F_ratio=0.5, vapor_pressure_method='polynomial', model="raoult", activity_coefficient_model='van-laar'):
+            if not all(isinstance(v, (int, float)) for v in mole_fractions.values()):
+                raise ValueError("Mole fractions must be numeric.")
+
+            if not all(0 <= v <= 1 for v in mole_fractions.values()):
+                raise ValueError("Mole fractions must be between 0 and 1.")
+
+            # check temperature
+            if not isinstance(pressure, (int, float)):
+                raise ValueError("pressure must be numeric.")
+
+            # NOTE: components
+            components = self.components
+
+            # mole fractions based on components id
+            mole_fractions = [mole_fractions[component]
+                              for component in components]
+
+            # SECTION: extract source
+            Source_ = Source(self.model_source)
+
+            # NOTE: vapor pressure source
+            VaPr_comp = {}
+
+            # looping through components
+            for component in components:
+                # NOTE: equation source
+                # antoine equations [Pa]
+                VaPr_eq = Source_.data_extractor(component, 'VaPr')
+
+                # NOTE: args
+                VaPr_args = VaPr_eq.args
+                # check args (SI)
+                VaPr_args_required = Source_.check_args(VaPr_args)
+
+                # build args
+                _VaPr_args = Source_.build_args(VaPr_args_required)
+
+                # NOTE: update P and T
+                _VaPr_args['T'] = None
+
+                # set
+                VaPr_comp[component] = {
+                    "value": VaPr_eq,
+                    "args": VaPr_args,
+                    "return": VaPr_eq.returns
+                }
+
+            # NOTE: parameters
+            params = {
+                "components": components,
+                "mole_fraction": np.array(mole_fractions),
+                "pressure": {
+                    "value": pressure,
+                    "unit": "Pa"
+                },
+                "vapor_pressure": VaPr_comp,
+                "equilibrium_model": equilibrium_model,
+                "fugacity_model": fugacity_model,
+                "activity_model": activity_model,
+                "solver_method": solver_method
+            }
+
+            # res
+            res = self.DT(params, **kwargs)
+
+            # NOTE: set message
+            message = message if message is not None else "Bubble Temperature Calculation"
+            # add
+            res['message'] = message
+
+            # returns
+            return res
+        except Exception as e:
+            raise Exception(
+                f"Error in bubble_temperature calculation: {e}")
+
+    def flash_isothermal(self,
+                         inputs: Dict[str, float],
+                         equilibrium_model: Literal[
+                             'raoult', 'modified-raoult', 'fugacity-ratio'
+                         ] = 'raoult',
+                         fugacity_model: Literal[
+                             'vdW', 'PR', 'RK', 'SRK'
+                         ] = 'SRK',
+                         activity_model: Literal[
+                             'NRTL', 'UNIQUAC']
+                         = 'NRTL',
+                         solver_method: Literal[
+                             'minimize'
+                         ] = 'minimize',
+                         message: Optional[str] = None,
+                         **kwargs):
         '''
-        isothermal flash calculation
+        The `isothermal-flash` (IFL) calculation This calculation determines the vapor and liquid phase compositions and amounts at a specified temperature and pressure. The system is "flashed" isothermally, meaning the temperature is kept constant while the phase behavior is calculated for a mixture.
 
-        args:
-            mole_fractions: feed mole fraction [-]
-            flash_pressure: flash pressure [Pa]
-            flash_temperature: flash temperature [K] - isothermal condition T[in]=T[out]
-            feed_pressure: feed pressure to check the current state of the feed
-            feed_flowrate: feed flowrate (mole basis) [mol/s]
-            guess_V_F_ratio:
-            vapor_pressure_method:
-            model: "raoult"
+        Parameters
+        ----------
+        inputs : dict
+            Dictionary containing the input parameters for the calculation.
+            - mole_fraction : dict
+                Dictionary of component names and their respective mole fractions.
+            - temperature : float
+                Temperature at which to calculate the bubble pressure (in Kelvin, Celsius, Fahrenheit).
+            - pressure : float
+                Pressure at which to calculate the bubble pressure (in Pascal, bar, atm).
+        equilibrium_model : str, optional
+            the equilibrium model to use for the calculation. Default is 'raoult'.
+        fugacity_model : str, optional
+            The fugacity model to use for the calculation. Default is 'SRK'.
+        activity_model : str, optional
+            The activity coefficient model to use for the calculation. Default is 'NRTL'.
+        solver_method : str, optional
+            The solver method to use for the calculation. Default is 'root'.
+            - 'minimize' : Minimize the objective function.
+            - 'least-squares' : Least-squares optimization algorithm.
+        message : str, optional
+            Message to display during the calculation. Default is None.
+        **kwargs : dict, optional
+            Additional parameters for the model.
+            - `guess_V_F_ratio`: initial guess for the vapor-to-liquid ratio (V/F), default is 0.5
 
-        notes:
-            flash case: P[bubble]>P[flash]>P[dew]
-            cases:
-                1. P[bubble]<P[flash] results in the liquid phase feed
-                2. P[dew]>P[flash] results in the vapor phase feed
+
+        Returns
+        -------
+
+
+        Notes
+        -----
+        The summary of the calculation is as follows:
+
+        - Known Information: Temperature (T), Pressure (P), and feed mole fraction of the components (zi).
+        - Computed Information: Vapor and liquid phase compositions (yi and xi), and the vapor-to-liquid ratio (V/F).
+
+        Flash occurs when the bubble pressure is greater than the dew pressure, and the system is in a two-phase region. The calculation will return the phase compositions and flow rates based on the specified temperature and pressure.
+
+        flash case:
+        - P[bubble] > P[flash] > P[dew] results in the two phase feed
+        - P[bubble] < P[flash] results in the liquid phase feed
+        - P[dew] > P[flash] results in the vapor phase feed
         '''
-        # vapor pressure at inlet temperature
-        VaPr = self.vaporPressureMixture(
-            flash_temperature, vapor_pressure_method)
+        try:
+            # SECTION: check inputs
+            # check inputs
+            if not isinstance(inputs, dict):
+                raise ValueError("Inputs must be a dictionary.")
 
-        # bubble pressure [Pa]
-        BuPr = self.calBubblePressure(mole_fractions, VaPr)
+            # check keys
+            if 'mole_fraction' not in inputs or 'pressure' not in inputs or 'temperature' not in inputs:
+                raise ValueError(
+                    "Inputs must contain 'mole_fraction', 'pressure', and 'temperature' keys.")
 
-        # dew pressure
-        DePr = self.calDewPressure(mole_fractions, VaPr)
+            # NOTE: set inputs - dict
+            mole_fractions = inputs['mole_fraction']
+            # NOTE: pressure [Pa]
+            pressure = pycuc.convert_from_to(
+                inputs['pressure'][0], inputs['pressure'][1], 'Pa')
+            # NOTE: temperature [K]
+            temperature = pycuc.convert_from_to(
+                inputs['temperature'][0], inputs['temperature'][1], 'K')
 
-        # check flash
-        flashState = False
-        if BuPr > flash_pressure and flash_pressure > DePr:
-            # two phase exists
-            flashState = True
-        else:
-            # one phase exist (liquid)
-            flashState = False
+            # check mole fractions
+            if not isinstance(mole_fractions, dict):
+                raise ValueError("Mole fractions must be a dictionary.")
 
-        # check current state of the feed
-        feedState = True
-        if feed_pressure < BuPr:
-            feedState = False
+            if not all(isinstance(v, (int, float)) for v in mole_fractions.values()):
+                raise ValueError("Mole fractions must be numeric.")
 
-        # params
-        params = {
-            "F": feed_flowrate,
-            "zi": np.array(mole_fractions),
-            "P_flash": flash_pressure,
-            "T_flash": flash_temperature,
-            "VaPe": VaPr
-        }
+            if not all(0 <= v <= 1 for v in mole_fractions.values()):
+                raise ValueError("Mole fractions must be between 0 and 1.")
 
-        # config
-        config = {
-            "guess_V_F_ratio": guess_V_F_ratio,
-            "VaPeCal": vapor_pressure_method,
-            "model": model
-        }
+            # check pressure
+            if not isinstance(pressure, (int, float)):
+                raise ValueError("pressure must be numeric.")
+            # check temperature
+            if not isinstance(temperature, (int, float)):
+                raise ValueError("temperature must be numeric.")
 
-        # flash calculation
-        V_F_ratio, L_F_ratio, xi, yi = self.flashIsothermalV2(params, config)
+            # NOTE: components
+            components = self.components
 
-        # NOTE
-        # ! display results
-        # vapor pressure
-        _display = []
+            # mole fractions based on components id
+            mole_fractions = [mole_fractions[component]
+                              for component in components]
 
-        # header
-        _display.append(['Parameter', 'Value', 'Unit'])
+            # SECTION: extract source
+            Source_ = Source(self.model_source)
 
-        for i in range(self.comp_num):
-            _display.append(
-                [self.components[i].symbol+' vapor-pressure [P*]', roundNum(VaPr[i], 3), 'Pa'])
+            # NOTE: vapor pressure source
+            VaPr_comp = {}
 
-        for i in range(self.comp_num):
-            _display.append([self.components[i].symbol +
-                            ' liquid mole fraction [x]', roundNum(xi[i], 4), '-'])
+            # looping through components
+            for component in components:
+                # NOTE: equation source
+                # antoine equations [Pa]
+                VaPr_eq = Source_.data_extractor(component, 'VaPr')
 
-        for i in range(self.comp_num):
-            _display.append([self.components[i].symbol +
-                            ' vapor mole fraction [y]', roundNum(yi[i], 4), '-'])
+                # NOTE: args
+                VaPr_args = VaPr_eq.args
+                # check args (SI)
+                VaPr_args_required = Source_.check_args(VaPr_args)
 
-        #
-        _display.extend(
-            [['bubble pressure', roundNum(BuPr, 2), 'Pa'],
-             ['dew pressure', roundNum(DePr, 2), 'Pa'],
-             ['feed flowrate', 1, 'mol/s'],
-             ['liquid flowrate', roundNum(L_F_ratio, 3), 'mol/s'],
-             ['vapor flowrate', roundNum(V_F_ratio, 3), 'mol/s']]
-        )
+                # build args
+                _VaPr_args = Source_.build_args(VaPr_args_required)
 
-        # log
-        # self.colDisplay(_display)
+                # NOTE: update P and T
+                _VaPr_args['T'] = temperature
 
-        # res
-        return flashState, BuPr, DePr, VaPr, V_F_ratio, L_F_ratio, xi, yi
+                # NOTE: execute
+                _VaPr_res = VaPr_eq.cal(**_VaPr_args)
+                # extract
+                _VaPr_value = _VaPr_res['value']
+                _VaPr_unit = _VaPr_res['unit']
+                # unit conversion
+                # NOTE: unit conversion
+                _unit_block = f"{_VaPr_unit} => Pa"
+                _VaPr = pycuc.to(_VaPr_value, _unit_block)
+                # set
+                VaPr_comp[component] = {
+                    "value": _VaPr,
+                    "unit": "Pa"}
+
+            # NOTE: parameters
+            params = {
+                "components": components,
+                "mole_fraction": np.array(mole_fractions),
+                "pressure": {
+                    "value": pressure,
+                    "unit": "Pa"
+                },
+                "vapor_pressure": VaPr_comp,
+                "equilibrium_model": equilibrium_model,
+                "fugacity_model": fugacity_model,
+                "activity_model": activity_model,
+                "solver_method": solver_method
+            }
+
+            # flash calculation
+            res = self.IFL(params, **kwargs)
+
+            # NOTE: set message
+            message = message if message is not None else "Flash Isothermal Calculation"
+            # add
+            res['message'] = message
+
+            # res
+            return res
+        except Exception as e:
+            raise Exception(
+                f"Error in flash_isothermal calculation: {e}")
