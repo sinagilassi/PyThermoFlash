@@ -5,6 +5,7 @@ from typing import List, Dict, Optional
 import numpy as np
 from scipy import optimize
 import pycuc
+import pyThermoModels as ptm
 # local
 from .source import Source
 
@@ -35,6 +36,24 @@ class Equilibria:
     def component_num(self):
         '''Get the number of components in the system.'''
         return self.__comp_num
+
+    def __mole_fraction_comp(self, z_i: List[float]) -> Dict[str, float]:
+        '''
+        Convert mole fraction list to dictionary.
+
+        Parameters
+        ----------
+        z_i : list
+            List of mole fractions.
+
+        Returns
+        -------
+        dict
+            Dictionary of mole fractions.
+        '''
+        # convert to dict
+        return {str(self.components[i]): z_i[i]
+                for i in range(self.comp_num)}
 
     def BP(self, params, **kwargs):
         '''
@@ -91,10 +110,39 @@ class Equilibria:
             # NOTE: vapor pressure [Pa]
             VaPr_comp = params['vapor_pressure']
 
+            # NOTE: mole fraction dict
+            # convert to dict
+            z_i_comp = self.__mole_fraction_comp(z_i)
+
             # SECTION: activity coefficient
             if activity_model == 'NRTL':
-                # init NRTL model
-                AcCo_i = np.zeros(self.comp_num)
+                # Δg_ij, interaction energy parameter
+                dg_ij = kwargs.get('interaction-energy-parameter', None)
+                # α_ij, non-randomness parameter
+                alpha_ij = kwargs.get('non-randomness-parameter', None)
+
+                # NOTE: init NRTL model
+                # activity model
+                activity = ptm.activity(
+                    components=self.components, model_name=activity_model)
+                # set
+                activity_nrtl = activity.nrtl
+
+                # NOTE: calculate the binary interaction parameter matrix (tau_ij)
+                tau_ij, _ = activity_nrtl.cal_tau_ij_M1(
+                    temperature=T, dg_ij=dg_ij)
+
+                # NOTE: nrtl inputs
+                inputs_ = {
+                    'mole_fraction': z_i_comp,
+                    "tau_ij": tau_ij,
+                    "alpha_ij": alpha_ij
+                }
+
+                # NOTE: calculate activity
+                res_, _ = activity_nrtl.cal(model_input=inputs_)
+                # extract
+                AcCo_i = res_['value']
             elif activity_model == 'UNIQUAC':
                 # init UNIQUAC model
                 AcCo_i = np.zeros(self.comp_num)

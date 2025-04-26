@@ -204,6 +204,9 @@ class VLE(Equilibria):
             # add
             res['message'] = message
 
+            # NOTE: components
+            res['components'] = components
+
             # returns
             return res
         except Exception as e:
