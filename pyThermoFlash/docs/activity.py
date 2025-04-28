@@ -34,19 +34,19 @@ class Activity:
                 Interaction energy parameters for the components.
         '''
         try:
-            # NOTE: check src
+            # SECTION: check src
+            # NOTE: method 1
             # Δg_ij, interaction energy parameter
             dg_ij_src = kwargs.get('interaction-energy-parameter', None)
-            # α_ij, non-randomness parameter
-            alpha_ij_src = kwargs.get('non-randomness-parameter', None)
 
-            # SECTION: extract data
-            # dg_ij
-            dg_ij_str = f"dg | {components[0]} | {components[1]}"
-            dg_ij = dg_ij_src.ijs(dg_ij_str)
-            # α_ij
-            alpha_ij_str = f"alpha | {components[0]} | {components[1]}"
-            alpha_ij = alpha_ij_src.ijs(alpha_ij_str)
+            # NOTE: method 2
+            # constants a, b, and c
+            a_ij_src = kwargs.get('A-parameter', None)
+            b_ij_src = kwargs.get('B-parameter', None)
+            c_ij_src = kwargs.get('C-parameter', None)
+
+            # NOTE: α_ij, non-randomness parameter
+            alpha_ij_src = kwargs.get('non-randomness-parameter', None)
 
             # SECTION: init NRTL model
             # activity model
@@ -54,6 +54,26 @@ class Activity:
                 components=components, model_name='NRTL')
             # set
             activity_nrtl = activity.nrtl
+
+            # NOTE: check method
+            if dg_ij_src is not None:
+                # dg_ij
+                for component_i in components:
+                    for component_j in components:
+                        # check
+                        if component_i == component_j:
+                            continue
+                        else:
+                            dg_ij_str = f"dg | {component_i} | {component_j}"
+                            dg_ij = dg_ij_src.ijs(dg_ij_str)
+            else:
+                raise ValueError(
+                    "No valid source provided for interaction energy parameter (Δg_ij) or constants A, B, C.")
+
+            # SECTION: extract data
+            # α_ij
+            alpha_ij_str = f"alpha | {components[0]} | {components[1]}"
+            alpha_ij = alpha_ij_src.ijs(alpha_ij_str)
 
             # NOTE: calculate the binary interaction parameter matrix (tau_ij)
             tau_ij, _ = activity_nrtl.cal_tau_ij_M1(
