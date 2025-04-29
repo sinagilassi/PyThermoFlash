@@ -8,6 +8,7 @@ import pycuc
 import pyThermoModels as ptm
 # local
 from .source import Source
+from .activity import Activity
 
 
 class Equilibria:
@@ -55,7 +56,7 @@ class Equilibria:
         return {str(self.components[i]): z_i[i]
                 for i in range(self.comp_num)}
 
-    def BP(self, params, **kwargs):
+    def __BP(self, params, **kwargs):
         '''
         The bubble-point pressure (BP) calculation determines the pressure at which the first bubble of vapor forms when a liquid mixture is heated at a constant temperature. It is used to find the pressure for a given temperature at which the liquid will begin to vaporize. This calculation is based on `Raoult's law`, which states that the vapor pressure of each component in the mixture is proportional to its mole fraction in the liquid phase.
 
@@ -115,37 +116,21 @@ class Equilibria:
             z_i_comp = self.__mole_fraction_comp(z_i)
 
             # SECTION: activity coefficient
+            # NOTE: init model
+            # init NRTL model
+            activity = Activity()
+
+            # NOTE: check model
             if activity_model == 'NRTL':
-                # Δg_ij, interaction energy parameter
-                dg_ij = kwargs.get('interaction-energy-parameter', None)
-                # α_ij, non-randomness parameter
-                alpha_ij = kwargs.get('non-randomness-parameter', None)
-
-                # NOTE: init NRTL model
-                # activity model
-                activity = ptm.activity(
-                    components=self.components, model_name=activity_model)
-                # set
-                activity_nrtl = activity.nrtl
-
-                # NOTE: calculate the binary interaction parameter matrix (tau_ij)
-                tau_ij, _ = activity_nrtl.cal_tau_ij_M1(
-                    temperature=T, dg_ij=dg_ij)
-
-                # NOTE: nrtl inputs
-                inputs_ = {
-                    'mole_fraction': z_i_comp,
-                    "tau_ij": tau_ij,
-                    "alpha_ij": alpha_ij
-                }
-
-                # NOTE: calculate activity
-                res_, _ = activity_nrtl.cal(model_input=inputs_)
+                # calculate activity
+                res_ = activity.NRTL(self.components, z_i_comp, T, **kwargs)
                 # extract
                 AcCo_i = res_['value']
             elif activity_model == 'UNIQUAC':
-                # init UNIQUAC model
-                AcCo_i = np.zeros(self.comp_num)
+                # calculate activity
+                res_ = activity.UNIQUAC(self.components, z_i_comp, T, **kwargs)
+                # extract
+                AcCo_i = res_['value']
             else:
                 # equals unity for ideal solution
                 AcCo_i = np.ones(self.comp_num)
@@ -172,6 +157,7 @@ class Equilibria:
 
             # NOTE: results
             res = {
+                "equilibrium_model": eq_model,
                 "bubble_pressure": {
                     "value": BuPr,
                     "unit": "Pa"
@@ -201,7 +187,7 @@ class Equilibria:
         except Exception as e:
             raise Exception(f'bubble pressure calculation failed! {e}')
 
-    def DP(self, params, **kwargs):
+    def __DP(self, params, **kwargs):
         '''
         The dew-point pressure (DP) calculation determines the pressure at which the first drop of liquid condenses when a vapor mixture is cooled at a constant temperature. It is used to find the pressure at which vapor will begin to condense.
 
@@ -275,6 +261,7 @@ class Equilibria:
 
             # res
             res = {
+                "equilibrium_model": eq_model,
                 "dew_pressure": {
                     "value": DePr,
                     "unit": "Pa"
@@ -304,7 +291,7 @@ class Equilibria:
         except Exception as e:
             raise Exception(f'dew pressure calculation failed! {e}')
 
-    def BT(self, params, **kwargs):
+    def __BT(self, params, **kwargs):
         '''
         The `bubble-point temperature` (BT) calculation determines the temperature at which the first bubble of vapor forms when a liquid mixture is heated at a constant pressure. It helps identify the temperature at which the liquid will start vaporizing.
 
@@ -404,6 +391,7 @@ class Equilibria:
 
             # NOTE: results
             res = {
+                "equilibrium_model": eq_model,
                 "bubble_temperature": {
                     "value": T,
                     "unit": "K"
@@ -485,7 +473,7 @@ class Equilibria:
 
         return loss
 
-    def DT(self, params, **kwargs):
+    def __DT(self, params, **kwargs):
         '''
         The `dew-point temperature` (DT) calculation determines the temperature at which the first drop of liquid condenses when a vapor mixture is cooled at a constant pressure. It identifies the temperature at which vapor will start to condense.
 
@@ -593,6 +581,7 @@ class Equilibria:
 
             # NOTE: results
             res = {
+                "equilibrium_model": eq_model,
                 "dew_temperature": {
                     "value": T,
                     "unit": "K"
@@ -785,7 +774,7 @@ class Equilibria:
             # if any error occurs, return False
             raise Exception(f"Error in flash checker: {e}")
 
-    def IFL(self, params, **kwargs):
+    def __IFL(self, params, **kwargs):
         '''
         The `isothermal-flash` (IFL) calculation This calculation determines the vapor and liquid phase compositions and amounts at a specified temperature and pressure. The system is "flashed" isothermally, meaning the temperature is kept constant while the phase behavior is calculated for a mixture.
 
@@ -924,6 +913,7 @@ class Equilibria:
 
             # NOTE: results
             res = {
+                "equilibrium_model": eq_model,
                 "feed_mole_fraction": z_i,
                 "V_F_ratio": {
                     "value": V_F_ratio,

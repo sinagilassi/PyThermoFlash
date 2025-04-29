@@ -60,17 +60,70 @@ class VLE(Equilibria):
             return {}
         return self.__equationsource
 
+    def __set_models(self,
+                     equilibrium_model: str,
+                     fugacity_model: Optional[str],
+                     activity_model: Optional[str]):
+        '''
+        Set the models for the calculation.
+
+        Parameters
+        ----------
+        equilibrium_model : str
+            The equilibrium model to use for the calculation.
+        fugacity_model : str, optional
+            The fugacity model to use for the calculation.
+        activity_model : str, optional
+            The activity coefficient model to use for the calculation.
+
+        Returns
+        -------
+        dict
+            A dictionary containing the models used for the calculation.
+            - equilibrium_model : str
+                The equilibrium model used for the calculation.
+            - fugacity_model : str, optional
+                The fugacity model used for the calculation.
+            - activity_model : str, optional
+                The activity coefficient model used for the calculation.
+        '''
+        try:
+            # NOTE: set based on equilibrium model
+            if equilibrium_model == 'raoult':
+                fugacity_model_ = 'NA'
+                activity_model_ = 'NA'
+            elif equilibrium_model == 'modified-raoult':
+                fugacity_model_ = 'NA'
+                activity_model_ = activity_model
+            elif equilibrium_model == 'fugacity-ratio':
+                fugacity_model_ = fugacity_model
+                activity_model_ = 'NA'
+            else:
+                raise ValueError(
+                    f"Invalid equilibrium model: {equilibrium_model}.")
+
+            # res
+            return {
+                "equilibrium_model": equilibrium_model,
+                "fugacity_model": fugacity_model_,
+                "activity_model": activity_model_
+            }
+
+        except Exception as e:
+            raise Exception(
+                f"Error in setting models: {e}")
+
     def bubble_pressure(self,
                         inputs: Dict[str, float],
                         equilibrium_model: Literal[
                             'raoult', 'modified-raoult', 'fugacity-ratio'
                         ] = 'raoult',
-                        fugacity_model: Literal[
+                        fugacity_model: Optional[Literal[
                             'vdW', 'PR', 'RK', 'SRK'
-                        ] = 'SRK',
-                        activity_model: Literal[
-                            'NRTL', 'UNIQUAC']
-                        = 'NRTL',
+                        ]] = None,
+                        activity_model: Optional[Literal[
+                            'NRTL', 'UNIQUAC'
+                        ]] = None,
                         message: Optional[str] = None,
                         **kwargs):
         '''
@@ -182,6 +235,14 @@ class VLE(Equilibria):
                     "value": _VaPr,
                     "unit": "Pa"}
 
+            # SECTION: set models
+            # check equilibrium model
+            res_ = self.__set_models(
+                equilibrium_model=equilibrium_model,
+                fugacity_model=fugacity_model,
+                activity_model=activity_model
+            )
+
             # NOTE: parameters
             params = {
                 "components": components,
@@ -192,12 +253,12 @@ class VLE(Equilibria):
                 },
                 "vapor_pressure": VaPr_comp,
                 "equilibrium_model": equilibrium_model,
-                "fugacity_model": fugacity_model,
-                "activity_model": activity_model
+                "fugacity_model": res_['fugacity_model'],
+                "activity_model": res_['activity_model'],
             }
 
             # res
-            res = self.BP(params)
+            res = self.__BP(params)
 
             # NOTE: set message
             message = message if message is not None else "Bubble Pressure Calculation"
@@ -206,6 +267,13 @@ class VLE(Equilibria):
 
             # NOTE: components
             res['components'] = components
+
+            # NOTE: models
+            res['models'] = {
+                "equilibrium_model": equilibrium_model,
+                "fugacity_model": res_['fugacity_model'],
+                "activity_model": res_['activity_model']
+            }
 
             # returns
             return res
@@ -340,6 +408,14 @@ class VLE(Equilibria):
                     "return": VaPr_eq.returns
                 }
 
+            # SECTION: set models
+            # check equilibrium model
+            res_ = self.__set_models(
+                equilibrium_model=equilibrium_model,
+                fugacity_model=fugacity_model,
+                activity_model=activity_model
+            )
+
             # NOTE: parameters
             params = {
                 "components": components,
@@ -350,18 +426,25 @@ class VLE(Equilibria):
                 },
                 "vapor_pressure": VaPr_comp,
                 "equilibrium_model": equilibrium_model,
-                "fugacity_model": fugacity_model,
-                "activity_model": activity_model,
+                "fugacity_model": res_['fugacity_model'],
+                "activity_model": res_['activity_model'],
                 "solver_method": solver_method
             }
 
             # res
-            res = self.BT(params, **kwargs)
+            res = self.__BT(params, **kwargs)
 
             # NOTE: set message
             message = message if message is not None else "Bubble Temperature Calculation"
             # add
             res['message'] = message
+
+            # NOTE: models
+            res['models'] = {
+                "equilibrium_model": equilibrium_model,
+                "fugacity_model": res_['fugacity_model'],
+                "activity_model": res_['activity_model']
+            }
 
             # returns
             return res
@@ -494,6 +577,14 @@ class VLE(Equilibria):
                     "return": VaPr_eq.returns
                 }
 
+            # SECTION: set models
+            # check equilibrium model
+            res_ = self.__set_models(
+                equilibrium_model=equilibrium_model,
+                fugacity_model=fugacity_model,
+                activity_model=activity_model
+            )
+
             # NOTE: parameters
             params = {
                 "components": components,
@@ -504,18 +595,25 @@ class VLE(Equilibria):
                 },
                 "vapor_pressure": VaPr_comp,
                 "equilibrium_model": equilibrium_model,
-                "fugacity_model": fugacity_model,
-                "activity_model": activity_model,
+                "fugacity_model": res_['fugacity_model'],
+                "activity_model": res_['activity_model'],
                 "solver_method": solver_method
             }
 
             # res
-            res = self.DT(params, **kwargs)
+            res = self.__DT(params, **kwargs)
 
             # NOTE: set message
             message = message if message is not None else "Bubble Temperature Calculation"
             # add
             res['message'] = message
+
+            # NOTE: models
+            res['models'] = {
+                "equilibrium_model": equilibrium_model,
+                "fugacity_model": res_['fugacity_model'],
+                "activity_model": res_['activity_model']
+            }
 
             # returns
             return res
@@ -668,6 +766,14 @@ class VLE(Equilibria):
                     "value": _VaPr,
                     "unit": "Pa"}
 
+            # SECTION: set models
+            # check equilibrium model
+            res_ = self.__set_models(
+                equilibrium_model=equilibrium_model,
+                fugacity_model=fugacity_model,
+                activity_model=activity_model
+            )
+
             # NOTE: parameters
             params = {
                 "components": components,
@@ -678,8 +784,8 @@ class VLE(Equilibria):
                 },
                 "vapor_pressure": VaPr_comp,
                 "equilibrium_model": equilibrium_model,
-                "fugacity_model": fugacity_model,
-                "activity_model": activity_model,
+                "fugacity_model": res_['fugacity_model'],
+                "activity_model": res_['activity_model'],
                 "solver_method": solver_method
             }
 
@@ -690,6 +796,13 @@ class VLE(Equilibria):
             message = message if message is not None else "Flash Isothermal Calculation"
             # add
             res['message'] = message
+
+            # NOTE: models
+            res['models'] = {
+                "equilibrium_model": equilibrium_model,
+                "fugacity_model": res_['fugacity_model'],
+                "activity_model": res_['activity_model']
+            }
 
             # res
             return res
