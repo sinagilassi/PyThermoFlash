@@ -87,24 +87,17 @@ print(type(vle))
 print(vle.datasource)
 print(vle.equationsource)
 
-# SECTION: bubble-temperature point calculation
+# SECTION: bubble-point pressure calculation
 # inputs
 inputs = {
     'mole_fraction': {'benzene': 0.26, 'toluene': 0.74},
-    'pressure': [101.3, 'kPa']
+    'temperature': [80, 'C']
 }
 
-# bubble point
-res_bp = vle.bubble_temperature(inputs=inputs)
-print(res_bp)
+# ! bubble point pressure calculation
+# res_bp = vle.bubble_pressure(inputs=inputs)
+# print(res_bp)
 
-# SECTION: dew-temperature point calculation
-# inputs
-inputs = {
-    'mole_fraction': {'benzene': 0.26, 'toluene': 0.74},
-    'pressure': [101.3, 'kPa']
-}
-
-# dew point
-res_dp = vle.dew_temperature(inputs=inputs)
+# ! dew point pressure calculation
+res_dp = vle.dew_pressure(inputs=inputs)
 print(res_dp)

@@ -91,8 +91,8 @@ class Equilibria:
 
         - The solution is obtained by the following steps:
             1. Calculate the vapor pressure of each component at the given temperature (T).
-            2. Calculate the bubble pressure (P) using Raoult's law.
-            3. Calculate the mole fraction in the vapor phase (yi) using `Raoult's law`.
+            2. Calculate the bubble pressure (P) using `Raoult's law` or other methods.
+            3. Calculate the mole fraction in the vapor phase (yi) using `Raoult's law` or other methods.
         '''
         try:
             # SECTION: data
@@ -142,13 +142,15 @@ class Equilibria:
             # looping over components
             for i, component in enumerate(self.components):
                 # vapor pressure [Pa]
-                VaPr_i[i] = VaPr_comp[component]
+                VaPr_i[i] = VaPr_comp[component]['value']
 
             # bubble pressure [Pa]
             BuPr = np.sum(AcCo_i*z_i*VaPr_i)
 
             # vapor mole fraction
             y_i = np.zeros(self.component_num)
+
+            # looping over components
             for i in range(self.component_num):
                 y_i[i] = z_i[i]*VaPr_i[i]*AcCo_i[i]/BuPr
 
@@ -160,7 +162,7 @@ class Equilibria:
                 "components": self.components,
                 "equilibrium_model": eq_model,
                 "bubble_pressure": {
-                    "value": BuPr,
+                    "value": float(BuPr),
                     "unit": "Pa"
                 },
                 "temperature": {
@@ -235,6 +237,35 @@ class Equilibria:
             # activity model
             activity_model = params['activity_model']
 
+            # SECTION: activity coefficient
+            # NOTE: mole fraction dict
+            # convert to dict
+            y_i_comp = self.__mole_fraction_comp(y_i)
+
+            # temperature [K]
+            T_value = T['value']
+
+            # NOTE: init model
+            # init NRTL model
+            activity = Activity()
+
+            # NOTE: check model
+            if activity_model == 'NRTL':
+                # calculate activity
+                res_ = activity.NRTL(
+                    self.components, y_i_comp, T_value, **kwargs)
+                # extract
+                AcCo_i = res_['value']
+            elif activity_model == 'UNIQUAC':
+                # calculate activity
+                res_ = activity.UNIQUAC(
+                    self.components, y_i_comp, T_value, **kwargs)
+                # extract
+                AcCo_i = res_['value']
+            else:
+                # equals unity for ideal solution
+                AcCo_i = np.ones(self.component_num)
+
             # NOTE: vapor pressure [Pa]
             VaPr_comp = params['vapor_pressure']
 
@@ -244,7 +275,7 @@ class Equilibria:
             # looping over components
             for i, component in enumerate(self.components):
                 # vapor pressure [Pa]
-                VaPr_i[i] = VaPr_comp[component]
+                VaPr_i[i] = VaPr_comp[component]['value']*AcCo_i[i]
 
             # NOTE: dew pressure [Pa]
             DePr = 1/np.dot(y_i, 1/VaPr_i)
@@ -265,7 +296,7 @@ class Equilibria:
                 "components": self.components,
                 "equilibrium_model": eq_model,
                 "dew_pressure": {
-                    "value": DePr,
+                    "value": float(DePr),
                     "unit": "Pa"
                 },
                 "temperature": {
@@ -837,8 +868,6 @@ class Equilibria:
             - T: temperature [K]
         kwargs : dict
             additional parameters for the calculation
-            - `guess_V_F_ratio`: initial guess for the vapor-to-liquid ratio (V/F), default is 0.5
-
 
         Returns
         -------
@@ -882,8 +911,6 @@ class Equilibria:
             VaPr_comp = params['vapor_pressure']
 
             # NOTE: kwarg
-            # V/F guess [dimensionless]
-            V_F_ratio_g0 = kwargs.get('guess_V_F_ratio', 0.5)
 
             # NOTE: set values
             # pressure [Pa]

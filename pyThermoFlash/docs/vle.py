@@ -223,7 +223,7 @@ class VLE(Equilibria):
             for component in components:
                 # NOTE: equation source
                 # antoine equations [Pa]
-                VaPr_eq = Source_.data_extractor(component, 'VaPr')
+                VaPr_eq = Source_.eq_extractor(component, 'VaPr')
 
                 # NOTE: args
                 VaPr_args = VaPr_eq.args
@@ -293,8 +293,169 @@ class VLE(Equilibria):
             raise ValueError(
                 f"Error in bubble_pressure calculation: {e}")
 
-    def dew_pressure(self):
-        pass
+    def dew_pressure(self,
+                     inputs: Dict[str, float],
+                     equilibrium_model: Literal[
+                         'raoult', 'modified-raoult', 'fugacity-ratio'
+                     ] = 'raoult',
+                     fugacity_model: Optional[Literal[
+                         'vdW', 'PR', 'RK', 'SRK'
+                     ]] = None,
+                     activity_model: Optional[Literal[
+                         'NRTL', 'UNIQUAC'
+                     ]] = None,
+                     message: Optional[str] = None,
+                     **kwargs):
+        '''
+        The dew-point pressure (DP) calculation determines the pressure at which the first drop of liquid condenses when a vapor mixture is cooled at a constant temperature. It is used to find the pressure at which vapor will begin to condense.
+
+        Parameters
+        ----------
+        inputs : dict
+            Dictionary containing the input parameters for the calculation.
+            - mole_fraction : dict
+                Dictionary of component names and their respective mole fractions.
+            - temperature : float
+                Temperature at which to calculate the bubble pressure (in Kelvin, Celsius, Fahrenheit).
+        equilibrium_model : str, optional
+            The equilibrium model to use for the calculation. Default is 'raoult'.
+        fugacity_model : str, optional
+            The fugacity model to use for the calculation. Default is 'SRK'.
+        activity_model : str, optional
+            The activity coefficient model to use for the calculation. Default is 'NRTL'.
+        message : str, optional
+            Message to display during the calculation. Default is None.
+        **kwargs : dict, optional
+            Additional parameters for the model.
+
+        Returns
+        -------
+
+        Notes
+        -----
+        - Temperature must be in Kelvin, Celsius, or Fahrenheit, and will be converted to Kelvin.
+        - Mole fractions must be between 0 and 1.
+        - The function will raise a ValueError if the inputs are not valid.
+        - The default equilibrium model is 'raoult', and the default activity model is 'NRTL'.
+        - The function will return the dew pressure in Pascals.
+        '''
+        try:
+            # SECTION: check inputs
+            # check inputs
+            if not isinstance(inputs, dict):
+                raise ValueError("Inputs must be a dictionary.")
+
+            # check keys
+            if 'mole_fraction' not in inputs or 'temperature' not in inputs:
+                raise ValueError(
+                    "Inputs must contain 'mole_fraction' and 'temperature' keys.")
+
+            # NOTE: set inputs - dict
+            mole_fractions = inputs['mole_fraction']
+            # NOTE: temperature [K]
+            temperature = pycuc.convert_from_to(
+                inputs['temperature'][0], inputs['temperature'][1], 'K')
+
+            # check mole fractions
+            if not isinstance(mole_fractions, dict):
+                raise ValueError("Mole fractions must be a dictionary.")
+
+            if not all(isinstance(v, (int, float)) for v in mole_fractions.values()):
+                raise ValueError("Mole fractions must be numeric.")
+
+            if not all(0 <= v <= 1 for v in mole_fractions.values()):
+                raise ValueError("Mole fractions must be between 0 and 1.")
+
+            # check temperature
+            if not isinstance(temperature, (int, float)):
+                raise ValueError("Temperature must be numeric.")
+
+            # NOTE: components
+            components = self.components
+
+            # mole fractions based on components id
+            mole_fractions = [mole_fractions[component]
+                              for component in components]
+
+            # SECTION: extract source
+            Source_ = Source(self.model_source)
+
+            # NOTE: vapor pressure source
+            VaPr_comp = {}
+
+            # looping through components
+            for component in components:
+                # NOTE: equation source
+                # antoine equations [Pa]
+                VaPr_eq = Source_.eq_extractor(component, 'VaPr')
+
+                # NOTE: args
+                VaPr_args = VaPr_eq.args
+                # check args (SI)
+                VaPr_args_required = Source_.check_args(VaPr_args)
+
+                # build args
+                _VaPr_args = Source_.build_args(VaPr_args_required)
+
+                # NOTE: update P and T
+                _VaPr_args['T'] = temperature
+
+                # NOTE: execute
+                _VaPr_res = VaPr_eq.cal(**_VaPr_args)
+                # extract
+                _VaPr_value = _VaPr_res['value']
+                _VaPr_unit = _VaPr_res['unit']
+                # unit conversion
+                # NOTE: unit conversion
+                _unit_block = f"{_VaPr_unit} => Pa"
+                _VaPr = pycuc.to(_VaPr_value, _unit_block)
+                # set
+                VaPr_comp[component] = {
+                    "value": _VaPr,
+                    "unit": "Pa"}
+
+            # SECTION: set models
+            # check equilibrium model
+            res_ = self.__set_models(
+                equilibrium_model=equilibrium_model,
+                fugacity_model=fugacity_model,
+                activity_model=activity_model
+            )
+
+            # NOTE: parameters
+            params = {
+                "components": components,
+                "mole_fraction": np.array(mole_fractions),
+                "temperature": {
+                    "value": temperature,
+                    "unit": "K"
+                },
+                "vapor_pressure": VaPr_comp,
+                "equilibrium_model": equilibrium_model,
+                "fugacity_model": res_['fugacity_model'],
+                "activity_model": res_['activity_model'],
+            }
+
+            # res
+            res = self._DP(params)
+
+            # NOTE: set message
+            message = message if message is not None else "Bubble Pressure Calculation"
+            # add
+            res['message'] = message
+
+            # NOTE: components
+            res['components'] = components
+
+            # NOTE: models
+            res["fugacity_model"] = res_['fugacity_model']
+            res["activity_model"] = res_['activity_model']
+
+            # returns
+            return res
+        except Exception as e:
+            raise ValueError(
+                f"Error in bubble_pressure calculation: {e}")
 
     def bubble_temperature(self,
                            inputs: Dict[str, float],
@@ -566,7 +727,7 @@ class VLE(Equilibria):
             for component in components:
                 # NOTE: equation source
                 # antoine equations [Pa]
-                VaPr_eq = Source_.data_extractor(component, 'VaPr')
+                VaPr_eq = Source_.eq_extractor(component, 'VaPr')
 
                 # NOTE: args
                 VaPr_args = VaPr_eq.args
