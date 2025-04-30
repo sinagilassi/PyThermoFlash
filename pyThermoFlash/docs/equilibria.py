@@ -54,9 +54,9 @@ class Equilibria:
         '''
         # convert to dict
         return {str(self.components[i]): z_i[i]
-                for i in range(self.comp_num)}
+                for i in range(self.component_num)}
 
-    def __BP(self, params, **kwargs):
+    def _BP(self, params, **kwargs):
         '''
         The bubble-point pressure (BP) calculation determines the pressure at which the first bubble of vapor forms when a liquid mixture is heated at a constant temperature. It is used to find the pressure for a given temperature at which the liquid will begin to vaporize. This calculation is based on `Raoult's law`, which states that the vapor pressure of each component in the mixture is proportional to its mole fraction in the liquid phase.
 
@@ -133,11 +133,11 @@ class Equilibria:
                 AcCo_i = res_['value']
             else:
                 # equals unity for ideal solution
-                AcCo_i = np.ones(self.comp_num)
+                AcCo_i = np.ones(self.component_num)
 
             # SECTION: vapor pressure calculation
             # vapor pressure [Pa]
-            VaPr_i = np.zeros(self.comp_num)
+            VaPr_i = np.zeros(self.component_num)
 
             # looping over components
             for i, component in enumerate(self.components):
@@ -148,8 +148,8 @@ class Equilibria:
             BuPr = np.sum(AcCo_i*z_i*VaPr_i)
 
             # vapor mole fraction
-            y_i = np.zeros(self.comp_num)
-            for i in range(self.comp_num):
+            y_i = np.zeros(self.component_num)
+            for i in range(self.component_num):
                 y_i[i] = z_i[i]*VaPr_i[i]*AcCo_i[i]/BuPr
 
             # NOTE: Ki ratio
@@ -157,6 +157,7 @@ class Equilibria:
 
             # NOTE: results
             res = {
+                "components": self.components,
                 "equilibrium_model": eq_model,
                 "bubble_pressure": {
                     "value": BuPr,
@@ -187,7 +188,7 @@ class Equilibria:
         except Exception as e:
             raise Exception(f'bubble pressure calculation failed! {e}')
 
-    def __DP(self, params, **kwargs):
+    def _DP(self, params, **kwargs):
         '''
         The dew-point pressure (DP) calculation determines the pressure at which the first drop of liquid condenses when a vapor mixture is cooled at a constant temperature. It is used to find the pressure at which vapor will begin to condense.
 
@@ -261,6 +262,7 @@ class Equilibria:
 
             # res
             res = {
+                "components": self.components,
                 "equilibrium_model": eq_model,
                 "dew_pressure": {
                     "value": DePr,
@@ -277,7 +279,7 @@ class Equilibria:
                     "unit": "Pa"
                 },
                 "activity_coefficient": {
-                    "value": np.ones(self.comp_num),
+                    "value": np.ones(self.component_num),
                     "unit": "dimensionless"
                 },
                 "K_ratio": {
@@ -291,7 +293,7 @@ class Equilibria:
         except Exception as e:
             raise Exception(f'dew pressure calculation failed! {e}')
 
-    def __BT(self, params, **kwargs):
+    def _BT(self, params, **kwargs):
         '''
         The `bubble-point temperature` (BT) calculation determines the temperature at which the first bubble of vapor forms when a liquid mixture is heated at a constant pressure. It helps identify the temperature at which the liquid will start vaporizing.
 
@@ -333,6 +335,8 @@ class Equilibria:
             fugacity_model = params['fugacity_model']
             # activity model
             activity_model = params['activity_model']
+            # solver method
+            solver_method = params['solver_method']
 
             # SECTION: vapor pressure calculation
             # NOTE: vapor pressure equation [Pa]
@@ -343,25 +347,64 @@ class Equilibria:
             T_g0 = kwargs.get('guess_temperature', 295)
 
             # SECTION: optimization
+            # pressure [Pa]
+            P_value = P['value']
+
             # params
             _params = {
                 'mole_fraction': z_i,
-                'pressure': P,
+                'pressure': P_value,
                 'vapor_pressure': VaPr_comp
             }
 
             # NOTE: bubble temperature [K]
-            _res0 = optimize.fsolve(self.fBT, T_g0, args=(_params,))
-            # check if root found
-            if _res0.success is False:
-                raise Exception('root not found!')
-            # ->
-            # REVIEW
-            T = _res0[0]
+            T = None
 
-            # NOTE: vapor pressure [Pa]
+            # check solver method
+            if solver_method == 'fsolve':
+                # ! fsolve
+                _res0 = optimize.fsolve(
+                    self.fBT, T_g0, args=(_params,), full_output=True)
+                # extract
+                T, infodict, ier, msg = _res0
+
+                # check if root found
+                if ier != 1:
+                    raise Exception(f'root not found!, {msg}')
+
+                # check
+                if len(T) == 1:
+                    T = float(T[0])
+            elif solver_method == 'root':
+                # ! root
+                _res0 = optimize.root(
+                    self.fBT, T_g0, args=(_params,))
+
+                # check
+                if not _res0.success:
+                    raise Exception(f'root not found!, {_res0.message}')
+
+                # extract
+                T = _res0.x[0]
+
+            elif solver_method == 'least-squares':
+                # ! least-squares
+                _res0 = optimize.least_squares(
+                    self.fBT, T_g0, args=(_params,))
+
+                # check
+                if not _res0.success:
+                    raise Exception(f'root not found!, {_res0.message}')
+
+                # extract
+                T = _res0.x[0]
+
+            else:
+                raise Exception('solver method not found!')
+
+            # SECTION: vapor pressure [Pa]
             # at T (Tg)
-            VaPr = np.zeros(self.comp_num)
+            VaPr = np.zeros(self.component_num)
 
             # looping over components
             for i, component in enumerate(self.components):
@@ -371,7 +414,7 @@ class Equilibria:
                 # update args
                 args_['T'] = T
                 # cal
-                res_ = eq_(**args_)
+                res_ = eq_.cal(**args_)
                 # extract
                 res_value_ = res_['value']
                 res_unit_ = res_['unit']
@@ -382,16 +425,18 @@ class Equilibria:
                 VaPr[i] = VaPr_
 
             # vapor mole fraction
-            yi = np.zeros(self.comp_num)
-            for i in range(self.comp_num):
-                yi[i] = z_i[i]*VaPr[i]/P
+            yi = np.zeros(self.component_num)
+            for i in range(self.component_num):
+                yi[i] = z_i[i]*VaPr[i]/P_value
 
             # NOTE: k-ratio
             K_i = np.multiply(yi, 1/z_i)
 
             # NOTE: results
             res = {
+                "components": self.components,
                 "equilibrium_model": eq_model,
+                "solver_method": solver_method,
                 "bubble_temperature": {
                     "value": T,
                     "unit": "K"
@@ -454,7 +499,7 @@ class Equilibria:
             # update args
             args_['T'] = T
             # cal
-            res_ = eq_(**args_)
+            res_ = eq_.cal(**args_)
             # extract
             res_value_ = res_['value']
             res_unit_ = res_['unit']
@@ -473,7 +518,7 @@ class Equilibria:
 
         return loss
 
-    def __DT(self, params, **kwargs):
+    def _DT(self, params, **kwargs):
         '''
         The `dew-point temperature` (DT) calculation determines the temperature at which the first drop of liquid condenses when a vapor mixture is cooled at a constant pressure. It identifies the temperature at which vapor will start to condense.
 
@@ -550,7 +595,7 @@ class Equilibria:
 
             # NOTE: vapor pressure [Pa]
             # at T (Tg)
-            VaPr_i = np.zeros(self.comp_num)
+            VaPr_i = np.zeros(self.component_num)
 
             # looping over components
             for i, component in enumerate(self.components):
@@ -560,7 +605,7 @@ class Equilibria:
                 # update args
                 args_['T'] = T
                 # cal
-                res_ = eq_(**args_)
+                res_ = eq_.cal(**args_)
                 # extract
                 res_value_ = res_['value']
                 res_unit_ = res_['unit']
@@ -572,8 +617,8 @@ class Equilibria:
                 VaPr_i[i] = VaPr_
 
             # NOTE: vapor mole fraction
-            xi = np.zeros(self.comp_num)
-            for i in range(self.comp_num):
+            xi = np.zeros(self.component_num)
+            for i in range(self.component_num):
                 xi[i] = z_i[i]*P/VaPr_i[i]
 
             # NOTE: k-ratio
@@ -581,6 +626,7 @@ class Equilibria:
 
             # NOTE: results
             res = {
+                "components": self.components,
                 "equilibrium_model": eq_model,
                 "dew_temperature": {
                     "value": T,
@@ -644,7 +690,7 @@ class Equilibria:
             # update args
             args_['T'] = T
             # cal
-            res_ = eq_(**args_)
+            res_ = eq_.cal(**args_)
             # extract
             res_value_ = res_['value']
             res_unit_ = res_['unit']
@@ -665,7 +711,7 @@ class Equilibria:
 
     def __cal_bubble_pressure(self, xi: np.ndarray, VaPr: np.ndarray) -> float:
         '''
-        Calculate bubble pressure
+        Calculate bubble pressure according to Raoult's law.
 
         Parameters
         ----------
@@ -687,7 +733,7 @@ class Equilibria:
 
     def __cal_dew_pressure(self, yi: np.ndarray, VaPr: np.ndarray) -> float:
         '''
-        Calculate dew pressure
+        Calculate dew pressure according to Raoult's law.
 
         Parameters
         ----------
@@ -707,9 +753,13 @@ class Equilibria:
         # res
         return DePr
 
-    def __flash_checker(self, z_i: List[float], Pf: float, Tf: float, VaPr_comp: Dict) -> bool:
+    def _flash_checker(self,
+                       z_i: List[float],
+                       Pf: float,
+                       Tf: float,
+                       VaPr_comp: Dict) -> bool:
         '''
-        Check if the flash occurs at the given pressure and temperature according to the bubble and dew pressures of the mixture.
+        Check if the flash occurs at the given pressure and temperature according to the bubble and dew pressures of the mixture; according to Raoult's law.
 
         Parameters
         ----------
@@ -738,7 +788,7 @@ class Equilibria:
         '''
         try:
             # NOTE: vapor pressure [Pa]
-            VaPr_i = np.zeros(self.comp_num)
+            VaPr_i = np.zeros(self.component_num)
 
             # looping over components
             for i, component in enumerate(self.components):
@@ -748,7 +798,7 @@ class Equilibria:
                 # update args
                 args_['T'] = Tf
                 # cal
-                res_ = eq_(**args_)
+                res_ = eq_.cal(**args_)
                 # extract
                 res_value_ = res_['value']
                 res_unit_ = res_['unit']
@@ -774,7 +824,7 @@ class Equilibria:
             # if any error occurs, return False
             raise Exception(f"Error in flash checker: {e}")
 
-    def __IFL(self, params, **kwargs):
+    def _IFL(self, params, **kwargs):
         '''
         The `isothermal-flash` (IFL) calculation This calculation determines the vapor and liquid phase compositions and amounts at a specified temperature and pressure. The system is "flashed" isothermally, meaning the temperature is kept constant while the phase behavior is calculated for a mixture.
 
@@ -835,6 +885,12 @@ class Equilibria:
             # V/F guess [dimensionless]
             V_F_ratio_g0 = kwargs.get('guess_V_F_ratio', 0.5)
 
+            # NOTE: set values
+            # pressure [Pa]
+            P_value = P['value']
+            # temperature [K]
+            T_value = T['value']
+
             # NOTE: ki ratio (Raoult's law)
             # pressure and temperature are constant (Raoutl's law)
             K_i = np.zeros(self.component_num)
@@ -848,9 +904,9 @@ class Equilibria:
                 eq_ = VaPr_comp[component]['value']
                 args_ = VaPr_comp[component]['args']
                 # update args
-                args_['T'] = T
+                args_['T'] = T_value
                 # cal
-                res_ = eq_(**args_)
+                res_ = eq_.cal(**args_)
                 # extract
                 res_value_ = res_['value']
                 res_unit_ = res_['unit']
@@ -859,7 +915,7 @@ class Equilibria:
                 VaPr_ = pycuc.to(res_value_, unit_block_)
                 # set
                 VaPr_i[i] = VaPr_
-                K_i[i] = VaPr_/P
+                K_i[i] = VaPr_/P_value
 
             # SECTION: optimization
             # NOTE: set params
@@ -869,41 +925,77 @@ class Equilibria:
             }
 
             # NOTE: check solver method
-            if solver_method == 'fsolve':
+            if solver_method == 'least_squares':
+                # ! least-squares
+                # NOTE: initial guess
+                N = self.component_num
+                # Initial guess: beta, x1, x2, ..., x_{N-1}
+                x0 = [0.5] + [1.0 / N] * (N - 1)
+
+                # NOTE: Bounds
+                # Small value to avoid numerical issues with log(0), etc.
+                eps = kwargs.get('eps', 1e-8)
+
+                lower_bounds = [eps] + [eps] * \
+                    (N - 1)         # β and each x_i ≥ eps
+                upper_bounds = [1.0 - eps] + [1.0] * \
+                    (N - 1)   # β ≤ 1−eps, x_i ≤ 1
+
+                bounds = (lower_bounds, upper_bounds)
+
                 # V/F
-                _res = optimize.fsolve(
-                    self.fIFL, V_F_ratio_g0, args=(_params,))
+                _res = optimize.least_squares(
+                    self.fIFL, x0, args=(_params,), bounds=bounds)
+
                 # check if root found
                 if _res.success is False:
-                    raise Exception('root not found!')
-                # ->
-                V_F_ratio = _res[0]
-            elif solver_method == 'minimize':
-                # NOTE: constraint in case x_i and y_i
-                # used for non-isothermal and non-ideal systems
+                    raise Exception(f'root not found!, {_res.message}')
 
-                # bounds
-                bounds = [(1e-6, 1 - 1e-6)]
-                # constraints
-                cons = [self.constraint_sum_x(
-                    z_i, K_i), self.constraint_sum_y(z_i, K_i)]
+                # -> result analysis
+                V_F_ratio = _res.x[0]
+                x_liq = np.zeros_like(z_i)
+                x_liq[:-1] = _res.x[1:]
+                x_liq[-1] = 1 - np.sum(x_liq[:-1])
+
+            elif solver_method == 'minimize':
+                # ! minimize
+                # NOTE: initial guess
+                N = self.component_num
+                # Initial guess: beta, x1, x2, ..., x_{N-1}
+                x0 = [0.5] + [1.0 / N] * (N - 1)
+
+                # NOTE: Bounds
+                # Small value to avoid numerical issues with log(0), etc.
+                eps = kwargs.get('eps', 1e-8)
+
+                # individual bounds (min, max)
+                bounds = [(eps, 1.0 - eps)] + [(eps, 1.0)
+                                               for _ in range(N - 1)]
 
                 # V/F
                 _res = optimize.minimize(
                     self.fIFL2,
-                    x0=[V_F_ratio_g0],
-                    args=(z_i, K_i,),
-                    constraints=cons,
-                    bounds=bounds,)
+                    x0=x0,
+                    args=(_params,),
+                    constraints=self.flash_constraints(z_i, K_i),
+                    bounds=bounds,
+                )
 
                 # check if root found
                 if _res.success is False:
                     raise Exception(f'root not found! {_res.message}')
-                # ->
+
+                # -> result analysis
                 V_F_ratio = _res.x[0]
+                x_liq = np.zeros_like(z_i)
+                x_liq[:-1] = _res.x[1:]
+                x_liq[-1] = 1 - np.sum(x_liq[:-1])
+
+            else:
+                raise Exception('solver method not found!')
 
             # SECTION: liquid/vapor mole fraction
-            xy_ = self.xyFlash(V_F_ratio, z_i, K_i)
+            xy_ = self.xy_flash(V_F_ratio, z_i, K_i)
             # set
             xi = xy_['liquid']
             yi = xy_['vapor']
@@ -913,6 +1005,7 @@ class Equilibria:
 
             # NOTE: results
             res = {
+                "components": self.components,
                 "equilibrium_model": eq_model,
                 "feed_mole_fraction": z_i,
                 "V_F_ratio": {
@@ -934,11 +1027,11 @@ class Equilibria:
                     "unit": "dimensionless"
                 },
                 "temperature": {
-                    "value": T,
+                    "value": T_value,
                     "unit": "K"
                 },
                 "pressure": {
-                    "value": P,
+                    "value": P_value,
                     "unit": "Pa"
                 },
                 "solver_method": solver_method
@@ -951,39 +1044,54 @@ class Equilibria:
 
     def fIFL(self, x, params):
         '''
-        Flash isothermal function
+        Flash isothermal function, according to Raoult's law.
 
         Parameters
         ----------
         x : array-like
-            V/F guess [dimensionless]
+            VF : vapor-feed ratio [dimensionless]
+            x_i : liquid mole fraction [dimensionless]
         params : tuple
             Tuple containing the following:
             - zi : feed mole fraction [dimensionless]
             - Ki : K ratio [dimensionless]
         '''
-        # NOTE: V/F
-        V_F_ratio = x[0]
+        # NOTE: extract variables
+        # vapor fraction
+        VF = x[0]
+        # liquid mole fraction
+        x_i = np.zeros(self.component_num)
+        x_i[:-1] = x[1:]
+        # last x_i
+        x_i[-1] = 1 - np.sum(x_i[:-1])
 
         # NOTE: params
+        # feed mole fraction
         z_i = params['mole_fraction']
+        # K ratio
         K_i = params['K_ratio']
+
+        # NOTE: vapor mole fraction
+        y_i = K_i * x_i
 
         # SECTION: check optimization region
         # Avoid division by zero or invalid regions
-        if V_F_ratio <= 0 or V_F_ratio >= 1:
+        if VF <= 0 or VF >= 1:
             return 1e6  # Return a large value to indicate invalid region
 
         # NOTE: function
-        f_i = np.zeros(self.component_num)
+        eqs = []
 
         # looping over components
-        for i in range(self.component_num):
-            f_i[i] = (z_i[i]*(1-K_i[i]))/(1+(V_F_ratio)*(K_i[i]-1))
+        for i in range(self.component_num - 1):
+            eq = z_i[i] - ((1 - VF) * x_i[i] + VF * y_i[i])
+            eqs.append(eq)
 
-        f = np.sum(f_i)
+        # Closure relations
+        eqs.append(np.sum(x_i) - 1)   # sum x_i = 1
+        eqs.append(np.sum(y_i) - 1)   # sum y_i = 1
 
-        return f
+        return eqs
 
     def xy_flash(self, V_F_ratio: float, z_i: np.ndarray, K_i: np.ndarray) -> Dict[str, np.ndarray]:
         '''
@@ -1023,71 +1131,62 @@ class Equilibria:
         except Exception as e:
             raise Exception(f"Error in xy_flash calculation: {e}")
 
-    def fIFL2(self, VF, params):
+    def fIFL2(self, x, params):
         '''
-        Flash isothermal function (nonlinear equations)
+        Flash isothermal function (nonlinear equations), according to Raoult's law.
 
         Parameters
         ----------
         x : array-like
-            The unknowns to be solved for, including:
-            1. VF: the vapor-to-liquid ratio (V/F)
+            VF : vapor-feed ratio [dimensionless]
+            x_i : liquid mole fraction [dimensionless]
         params : tuple
             Tuple containing the following:
             - zi: feed mole fraction (zi)
             - Ki: K ratio of each component in the mixture
         '''
-        # SECTION: extract variables
-        # set x
-        VF = VF[0]
+        # NOTE: extract variables
+        # vapor fraction
+        VF = x[0]
+        # liquid mole fraction
+        x_i = np.zeros(self.component_num)
+        x_i[:-1] = x[1:]
+        # last x_i
+        x_i[-1] = 1 - np.sum(x_i[:-1])
 
         # NOTE: params
-        # mole fraction [array]
+        # feed mole fraction
         z_i = params['mole_fraction']
-        # K ratio [dimensionless]
+        # K ratio
         K_i = params['K_ratio']
 
-        # SECTION: system of nonlinear equations (NLE)
-        # equations number
-        eq_num = 2*self.component_num
-        # objectives
-        fi = np.zeros(eq_num)
-
-        # equation index
-        eq_i = 0
-
-        # NOTE: liquid mole fraction
-        # looping over components
-        for i in range(self.component_num):
-            # solve the second NLE
-            fi[eq_i] = z_i[i] / (1 + VF*(K_i[i]-1))
-            # set index
-            eq_i += 1
-
         # NOTE: vapor mole fraction
-        # looping over components
-        for i in range(self.component_num):
-            # solve the first NLE
-            fi[eq_i] = z_i[i]*K_i[i] / (1 + VF*(K_i[i]-1))
-            # set index
-            eq_i += 1
+        y_i = K_i * x_i
 
-        # NOTE: objective function
-        f = np.abs(np.sum(fi))
+        # SECTION: system of nonlinear equations (NLE)
+        # Residuals of component balances
+        residuals = z_i - ((1 - VF) * x_i + VF * y_i)
 
-        return f
+        # Objective: minimize sum of squared residuals
+        return np.sum(residuals**2)
 
-    def constraint_sum_x(self, z, K):
-        def inner(VF):
-            VF = VF[0]
-            xi = z / (1 + VF * (K - 1))
-            return np.sum(xi) - 1
-        return {'type': 'eq', 'fun': inner}
+    def flash_constraints(self, z, K):
+        N = len(z)
 
-    def constraint_sum_y(self, z, K):
-        def inner(VF):
-            VF = VF[0]
-            xi = z / (1 + VF * (K - 1))
-            yi = K * xi
-            return np.sum(yi) - 1
-        return {'type': 'eq', 'fun': inner}
+        def liquid_sum(vars):
+            x = np.zeros(N)
+            x[:-1] = vars[1:]
+            x[-1] = 1.0 - np.sum(x[:-1])
+            return np.sum(x) - 1
+
+        def vapor_sum(vars):
+            x = np.zeros(N)
+            x[:-1] = vars[1:]
+            x[-1] = 1.0 - np.sum(x[:-1])
+            y = K * x
+            return np.sum(y) - 1
+
+        return [
+            {'type': 'eq', 'fun': liquid_sum},
+            {'type': 'eq', 'fun': vapor_sum},
+        ]

@@ -17,7 +17,7 @@ def vle(components: List[str],
     components : list
         List of component names.
     model_source : dict, optional
-        Model source parameters.
+        Model source parameters defined as a dictionary.
     kwargs : dict
         Additional parameters for the model.
 
@@ -25,6 +25,26 @@ def vle(components: List[str],
     -------
     VLE
         VLE model object.
+
+    Notes
+    -----
+    The model source can be a dictionary containing the following keys:
+
+    - datasource: str
+        The data source for the model.
+    - equationsource: str
+        The equation source for the model.
+
+    These two sources are generated with `PythermoDBLink`, please refer to the
+    documentation for more details.
+
+    ```python
+    # model source example
+    model_source = {
+        "datasource": datasource,
+        "equationsource": equationsource
+    }
+    ```
     '''
     try:
         # NOTE: check if components are valid

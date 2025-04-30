@@ -1,0 +1,36 @@
+# NOTE: this should be set based on the variables defined in the app
+# this rule used for setting a component data/equation names
+# component name:
+# DATA:
+#   data symbol defined in TableData: new symbol
+# EQUATIONS:
+#   equation symbol defined in TableEquations: new symbol
+
+benzene:
+  DATA:
+    Pc: Pc
+    Tc: Tc
+    AcFa: AcFa
+  EQUATIONS:
+    vapor-pressure: VaPr
+toluene:
+  DATA:
+    Pc: Pc
+    Tc: Tc
+    AcFa: AcFa
+  EQUATIONS:
+    vapor-pressure: VaPr
+water:
+  DATA:
+    Pc: Pc
+    Tc: Tc
+    AcFa: AcFa
+  EQUATIONS:
+    vapor-pressure: VaPr
+ethanol:
+  DATA:
+    Pc: Pc
+    Tc: Tc
+    AcFa: AcFa
+  EQUATIONS:
+    vapor-pressure: VaPr

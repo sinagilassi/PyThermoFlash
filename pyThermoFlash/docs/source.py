@@ -73,14 +73,20 @@ class Source:
         dict
             The extracted property.
         '''
-        if self.__model_source is None:
-            raise ValueError("Model source is not defined.")
+        if self.equationsource is None:
+            raise ValueError("Equation source is not defined.")
 
-        if prop_name not in self.__model_source[EQUATIONSOURCE]:
+        # NOTE: check component
+        if component_name not in self.equationsource.keys():
             raise ValueError(
-                f"Property '{prop_name}' not found in model source.")
+                f"Component '{component_name}' not found in model source.")
 
-        return self.__model_source[EQUATIONSOURCE][component_name][prop_name]
+        # NOTE: check property
+        if prop_name not in self.equationsource[component_name].keys():
+            raise ValueError(
+                f"Property '{prop_name}' not found in model source registered for {component_name}.")
+
+        return self.equationsource[component_name][prop_name]
 
     def data_extractor(self, component_name: str, prop_name: str):
         '''
@@ -101,9 +107,15 @@ class Source:
         if self.datasource is None:
             return None
 
-        if prop_name not in self.datasource.keys():
+        # NOTE: check component
+        if component_name not in self.datasource.keys():
             raise ValueError(
-                f"Property '{prop_name}' not found in model datasource.")
+                f"Component '{component_name}' not found in model datasource.")
+
+        # NOTE: check property
+        if prop_name not in self.datasource[component_name].keys():
+            raise ValueError(
+                f"Property '{prop_name}' not found in model datasource registered for {component_name}.")
 
         return self.datasource[component_name][prop_name]
 

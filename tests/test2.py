@@ -13,7 +13,7 @@ print(ptdb.__version__)
 print(ptdblink.__version__)
 
 # SECTION: examples
-# !Example 10-1, Page 438, Fundamental of Chemical Engineering Thermodynamics, Kevin D. Dahm
+# !Example 10-4, Page 452, Fundamental of Chemical Engineering Thermodynamics, Kevin D. Dahm
 
 # =======================================
 # ! LOAD THERMODB
@@ -21,26 +21,26 @@ print(ptdblink.__version__)
 # NOTE: thermodb directory
 thermodb_dir = os.path.join(os.getcwd(), 'tests', 'thermodb')
 
-# ! benzene (C6H6)
-C6H6_file = os.path.join(thermodb_dir, 'benzene-1.pkl')
-C6H6 = ptdb.load_thermodb(C6H6_file)
+# ! water (H2O)
+H2O_file = os.path.join(thermodb_dir, 'water-1.pkl')
+H2O = ptdb.load_thermodb(H2O_file)
 # check
-print(C6H6.check())
+print(H2O.check())
 
 # general-data
-res_ = C6H6.select('general-data')
+res_ = H2O.select('general-data')
 print(type(res_))
 print(res_.table_columns)
 print(res_.prop_data)
 
-# ! toluene (C7H8)
-C7H8_file = os.path.join(thermodb_dir, 'toluene-1.pkl')
-C7H8 = ptdb.load_thermodb(C7H8_file)
+# ! ethanol (C2H5OH)
+C2H5OH_file = os.path.join(thermodb_dir, 'ethanol-1.pkl')
+C2H5OH = ptdb.load_thermodb(C2H5OH_file)
 # check
-print(C7H8.check())
+print(C2H5OH.check())
 
 # general-data
-res_ = C7H8.select('general')
+res_ = C2H5OH.select('general-data')
 print(type(res_))
 print(res_.table_columns)
 print(res_.prop_data)
@@ -53,8 +53,8 @@ thub1 = ptdblink.init()
 print(type(thub1))
 
 # add component thermodb
-thub1.add_thermodb('benzene', C6H6)
-thub1.add_thermodb('toluene', C7H8)
+thub1.add_thermodb('water', H2O)
+thub1.add_thermodb('ethanol', C2H5OH)
 
 # * add thermodb rule
 thermodb_config_file = os.path.join(
@@ -71,7 +71,7 @@ datasource, equationsource = thub1.build()
 # =======================================
 # SECTION: vle model
 # components
-components = ['benzene', 'toluene']
+components = ['water', 'ethanol']
 
 # model source
 model_source = {
@@ -87,13 +87,14 @@ print(type(vle))
 print(vle.datasource)
 print(vle.equationsource)
 
-# SECTION: bubble point calculation
+# SECTION: flash calculation
 # inputs
 inputs = {
-    'mole_fraction': {'benzene': 0.26, 'toluene': 0.74},
-    'pressure': [101.3, 'kPa']
+    'mole_fraction': {'water': 0.50, 'ethanol': 0.50},
+    'temperature': [30.0, 'C'],
+    'pressure': [7.0, 'kPa']
 }
 
 # bubble point
-res_bp = vle.bubble_temperature(inputs=inputs)
+res_bp = vle.flash_isothermal(inputs=inputs, solver_method='minimize')
 print(res_bp)

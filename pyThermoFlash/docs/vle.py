@@ -31,6 +31,21 @@ class VLE(Equilibria):
         Equilibria.__init__(self, components)
 
     @property
+    def model_source(self) -> Dict:
+        '''
+        Get the model source property.
+
+        Returns
+        -------
+        dict
+            The model source dictionary.
+        '''
+        # NOTE: check if model source is valid
+        if self.__model_source is None:
+            return {}
+        return self.__model_source
+
+    @property
     def datasource(self) -> Dict:
         '''
         Get the datasource property.
@@ -90,14 +105,14 @@ class VLE(Equilibria):
         try:
             # NOTE: set based on equilibrium model
             if equilibrium_model == 'raoult':
-                fugacity_model_ = 'NA'
-                activity_model_ = 'NA'
+                fugacity_model_ = None
+                activity_model_ = None
             elif equilibrium_model == 'modified-raoult':
-                fugacity_model_ = 'NA'
+                fugacity_model_ = None
                 activity_model_ = activity_model
             elif equilibrium_model == 'fugacity-ratio':
                 fugacity_model_ = fugacity_model
-                activity_model_ = 'NA'
+                activity_model_ = None
             else:
                 raise ValueError(
                     f"Invalid equilibrium model: {equilibrium_model}.")
@@ -258,7 +273,7 @@ class VLE(Equilibria):
             }
 
             # res
-            res = self.__BP(params)
+            res = self._BP(params)
 
             # NOTE: set message
             message = message if message is not None else "Bubble Pressure Calculation"
@@ -269,11 +284,8 @@ class VLE(Equilibria):
             res['components'] = components
 
             # NOTE: models
-            res['models'] = {
-                "equilibrium_model": equilibrium_model,
-                "fugacity_model": res_['fugacity_model'],
-                "activity_model": res_['activity_model']
-            }
+            res["fugacity_model"] = res_['fugacity_model']
+            res["activity_model"] = res_['activity_model']
 
             # returns
             return res
@@ -296,7 +308,7 @@ class VLE(Equilibria):
                                'NRTL', 'UNIQUAC']
                            = 'NRTL',
                            solver_method: Literal[
-                               'root', 'least-squares', 'newton'
+                               'root', 'least-squares', 'fsolve'
                            ] = 'root',
                            message: Optional[str] = None,
                            **kwargs):
@@ -321,7 +333,7 @@ class VLE(Equilibria):
             The solver method to use for the calculation. Default is 'root'.
             - 'root' : Root-finding algorithm.
             - 'least-squares' : Least-squares optimization algorithm.
-            - 'newton' : Newton's method.
+            - 'fsolve' : SciPy's fsolve function.
         message : str, optional
             Message to display during the calculation. Default is None.
         **kwargs : dict, optional
@@ -388,7 +400,7 @@ class VLE(Equilibria):
             for component in components:
                 # NOTE: equation source
                 # antoine equations [Pa]
-                VaPr_eq = Source_.data_extractor(component, 'VaPr')
+                VaPr_eq = Source_.eq_extractor(component, 'VaPr')
 
                 # NOTE: args
                 VaPr_args = VaPr_eq.args
@@ -432,7 +444,7 @@ class VLE(Equilibria):
             }
 
             # res
-            res = self.__BT(params, **kwargs)
+            res = self._BT(params, **kwargs)
 
             # NOTE: set message
             message = message if message is not None else "Bubble Temperature Calculation"
@@ -440,11 +452,8 @@ class VLE(Equilibria):
             res['message'] = message
 
             # NOTE: models
-            res['models'] = {
-                "equilibrium_model": equilibrium_model,
-                "fugacity_model": res_['fugacity_model'],
-                "activity_model": res_['activity_model']
-            }
+            res["fugacity_model"] = res_['fugacity_model']
+            res["activity_model"] = res_['activity_model']
 
             # returns
             return res
@@ -601,7 +610,7 @@ class VLE(Equilibria):
             }
 
             # res
-            res = self.__DT(params, **kwargs)
+            res = self._DT(params, **kwargs)
 
             # NOTE: set message
             message = message if message is not None else "Bubble Temperature Calculation"
@@ -609,11 +618,8 @@ class VLE(Equilibria):
             res['message'] = message
 
             # NOTE: models
-            res['models'] = {
-                "equilibrium_model": equilibrium_model,
-                "fugacity_model": res_['fugacity_model'],
-                "activity_model": res_['activity_model']
-            }
+            res["fugacity_model"] = res_['fugacity_model']
+            res["activity_model"] = res_['activity_model']
 
             # returns
             return res
@@ -633,8 +639,9 @@ class VLE(Equilibria):
                              'NRTL', 'UNIQUAC']
                          = 'NRTL',
                          solver_method: Literal[
-                             'minimize'
+                             'minimize', 'least_squares'
                          ] = 'minimize',
+                         flash_checker: bool = False,
                          message: Optional[str] = None,
                          **kwargs):
         '''
@@ -647,9 +654,9 @@ class VLE(Equilibria):
             - mole_fraction : dict
                 Dictionary of component names and their respective mole fractions.
             - temperature : float
-                Temperature at which to calculate the bubble pressure (in Kelvin, Celsius, Fahrenheit).
+                Flash temperature (in Kelvin, Celsius, Fahrenheit).
             - pressure : float
-                Pressure at which to calculate the bubble pressure (in Pascal, bar, atm).
+                Flash pressure (in Pascal, bar, atm).
         equilibrium_model : str, optional
             the equilibrium model to use for the calculation. Default is 'raoult'.
         fugacity_model : str, optional
@@ -660,6 +667,8 @@ class VLE(Equilibria):
             The solver method to use for the calculation. Default is 'root'.
             - 'minimize' : Minimize the objective function.
             - 'least-squares' : Least-squares optimization algorithm.
+        flash_checker : bool, optional
+            If True, check if the system is in a two-phase region. Default is False.
         message : str, optional
             Message to display during the calculation. Default is None.
         **kwargs : dict, optional
@@ -739,7 +748,7 @@ class VLE(Equilibria):
             for component in components:
                 # NOTE: equation source
                 # antoine equations [Pa]
-                VaPr_eq = Source_.data_extractor(component, 'VaPr')
+                VaPr_eq = Source_.eq_extractor(component, 'VaPr')
 
                 # NOTE: args
                 VaPr_args = VaPr_eq.args
@@ -752,19 +761,12 @@ class VLE(Equilibria):
                 # NOTE: update P and T
                 _VaPr_args['T'] = temperature
 
-                # NOTE: execute
-                _VaPr_res = VaPr_eq.cal(**_VaPr_args)
-                # extract
-                _VaPr_value = _VaPr_res['value']
-                _VaPr_unit = _VaPr_res['unit']
-                # unit conversion
-                # NOTE: unit conversion
-                _unit_block = f"{_VaPr_unit} => Pa"
-                _VaPr = pycuc.to(_VaPr_value, _unit_block)
                 # set
                 VaPr_comp[component] = {
-                    "value": _VaPr,
-                    "unit": "Pa"}
+                    "value": VaPr_eq,
+                    "args": VaPr_args,
+                    "return": VaPr_eq.returns
+                }
 
             # SECTION: set models
             # check equilibrium model
@@ -782,6 +784,10 @@ class VLE(Equilibria):
                     "value": pressure,
                     "unit": "Pa"
                 },
+                "temperature": {
+                    "value": temperature,
+                    "unit": "K"
+                },
                 "vapor_pressure": VaPr_comp,
                 "equilibrium_model": equilibrium_model,
                 "fugacity_model": res_['fugacity_model'],
@@ -789,8 +795,23 @@ class VLE(Equilibria):
                 "solver_method": solver_method
             }
 
-            # flash calculation
-            res = self.IFL(params, **kwargs)
+            # SECTION: flash checker
+            if flash_checker:
+                # check
+                flash_checker_res_ = self._flash_checker(
+                    z_i=mole_fractions,
+                    Pf=pressure,
+                    Tf=temperature,
+                    VaPr_comp=VaPr_comp,
+                )
+
+                # check
+                if flash_checker_res_ is False:
+                    raise ValueError(
+                        "Flash calculation failed! The system is not in a two-phase region.")
+
+            # SECTION: flash calculation
+            res = self._IFL(params, **kwargs)
 
             # NOTE: set message
             message = message if message is not None else "Flash Isothermal Calculation"
@@ -798,11 +819,8 @@ class VLE(Equilibria):
             res['message'] = message
 
             # NOTE: models
-            res['models'] = {
-                "equilibrium_model": equilibrium_model,
-                "fugacity_model": res_['fugacity_model'],
-                "activity_model": res_['activity_model']
-            }
+            res["fugacity_model"] = res_['fugacity_model']
+            res["activity_model"] = res_['activity_model']
 
             # res
             return res
