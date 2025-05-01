@@ -14,14 +14,12 @@ class Source:
     def __init__(self, model_source: Optional[Dict] = None, **kwargs):
         '''Initialize the Source class.'''
         # set
-        self.__model_source = model_source
+        self.model_source = model_source
 
         # NOTE: source
         # set
-        self.__datasource = {
-        } if model_source is None else model_source[DATASOURCE]
-        self.__equationsource = {
-        } if model_source is None else model_source[EQUATIONSOURCE]
+        self._datasource, self._equationsource = self.set_source(
+            model_source=model_source)
 
     def __repr__(self):
         des = "Source class for the pyThermoFlash package."
@@ -38,9 +36,9 @@ class Source:
             The datasource dictionary.
         '''
         # NOTE: check if model source is valid
-        if self.__datasource is None:
+        if self._datasource is None:
             return {}
-        return self.__datasource
+        return self._datasource
 
     @property
     def equationsource(self) -> Dict:
@@ -53,9 +51,30 @@ class Source:
             The equationsource dictionary.
         '''
         # NOTE: check if model source is valid
-        if self.__equationsource is None:
+        if self._equationsource is None:
             return {}
-        return self.__equationsource
+        return self._equationsource
+
+    def set_source(self, model_source: Dict):
+        '''
+        Set the model source.
+
+        Parameters
+        ----------
+        model_source : dict
+            The model source dictionary.
+        '''
+        # NOTE: source
+        # datasource
+        _datasource = {
+        } if model_source is None else model_source[DATASOURCE]
+
+        # equationsource
+        _equationsource = {
+        } if model_source is None else model_source[EQUATIONSOURCE]
+
+        # res
+        return _datasource, _equationsource
 
     def eq_extractor(self, component_name: str, prop_name: str):
         '''
@@ -119,12 +138,14 @@ class Source:
 
         return self.datasource[component_name][prop_name]
 
-    def check_args(self, args):
+    def check_args(self, component_name: str, args):
         '''
         Checks equation args
 
         Parameters
         ----------
+        component_name : str
+            The name of the component.
         args : tuple
             equation args
         '''
@@ -133,7 +154,10 @@ class Source:
             required_args = []
 
             # datasource list
-            datasource_component_list = list(self.datasource.keys())
+            datasource_component_list = list(
+                self.datasource[component_name].keys())
+
+            # NOTE: default args
             datasource_component_list.append("P")
             datasource_component_list.append("T")
 
@@ -152,14 +176,20 @@ class Source:
         except Exception as e:
             raise Exception('Finding args failed!, ', e)
 
-    def build_args(self, args, ignore_symbols: List[str] = ["T", "P"]):
+    def build_args(self, component_name: str,
+                   args,
+                   ignore_symbols: List[str] = ["T", "P"]):
         '''
         Builds args
 
         Parameters
         ----------
+        component_name : str
+            The name of the component.
         args : tuple
             equation args
+        ignore_symbols : list
+            list of symbols to ignore, default is ["T", "P"]
         '''
         try:
             # res

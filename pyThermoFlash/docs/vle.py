@@ -131,7 +131,7 @@ class VLE(Equilibria):
     def bubble_pressure(self,
                         inputs: Dict[str, float],
                         equilibrium_model: Literal[
-                            'raoult', 'modified-raoult', 'fugacity-ratio'
+                            'raoult', 'modified-raoult'
                         ] = 'raoult',
                         fugacity_model: Optional[Literal[
                             'vdW', 'PR', 'RK', 'SRK'
@@ -228,10 +228,10 @@ class VLE(Equilibria):
                 # NOTE: args
                 VaPr_args = VaPr_eq.args
                 # check args (SI)
-                VaPr_args_required = Source_.check_args(VaPr_args)
+                VaPr_args_required = Source_.check_args(component, VaPr_args)
 
                 # build args
-                _VaPr_args = Source_.build_args(VaPr_args_required)
+                _VaPr_args = Source_.build_args(component, VaPr_args_required)
 
                 # NOTE: update P and T
                 _VaPr_args['T'] = temperature
@@ -296,7 +296,7 @@ class VLE(Equilibria):
     def dew_pressure(self,
                      inputs: Dict[str, float],
                      equilibrium_model: Literal[
-                         'raoult', 'modified-raoult', 'fugacity-ratio'
+                         'raoult', 'modified-raoult'
                      ] = 'raoult',
                      fugacity_model: Optional[Literal[
                          'vdW', 'PR', 'RK', 'SRK'
@@ -392,10 +392,10 @@ class VLE(Equilibria):
                 # NOTE: args
                 VaPr_args = VaPr_eq.args
                 # check args (SI)
-                VaPr_args_required = Source_.check_args(VaPr_args)
+                VaPr_args_required = Source_.check_args(component, VaPr_args)
 
                 # build args
-                _VaPr_args = Source_.build_args(VaPr_args_required)
+                _VaPr_args = Source_.build_args(component, VaPr_args_required)
 
                 # NOTE: update P and T
                 _VaPr_args['T'] = temperature
@@ -460,7 +460,7 @@ class VLE(Equilibria):
     def bubble_temperature(self,
                            inputs: Dict[str, float],
                            equilibrium_model: Literal[
-                               'raoult', 'modified-raoult', 'fugacity-ratio'
+                               'raoult', 'modified-raoult'
                            ] = 'raoult',
                            fugacity_model: Literal[
                                'vdW', 'PR', 'RK', 'SRK'
@@ -560,16 +560,17 @@ class VLE(Equilibria):
             # looping through components
             for component in components:
                 # NOTE: equation source
+                VaPr_eq = None
                 # antoine equations [Pa]
                 VaPr_eq = Source_.eq_extractor(component, 'VaPr')
 
                 # NOTE: args
                 VaPr_args = VaPr_eq.args
                 # check args (SI)
-                VaPr_args_required = Source_.check_args(VaPr_args)
+                VaPr_args_required = Source_.check_args(component, VaPr_args)
 
                 # build args
-                _VaPr_args = Source_.build_args(VaPr_args_required)
+                _VaPr_args = Source_.build_args(component, VaPr_args_required)
 
                 # NOTE: update P and T
                 _VaPr_args['T'] = None
@@ -577,7 +578,7 @@ class VLE(Equilibria):
                 # set
                 VaPr_comp[component] = {
                     "value": VaPr_eq,
-                    "args": VaPr_args,
+                    "args": _VaPr_args,
                     "return": VaPr_eq.returns
                 }
 
@@ -625,7 +626,7 @@ class VLE(Equilibria):
     def dew_temperature(self,
                         inputs: Dict[str, float],
                         equilibrium_model: Literal[
-                            'raoult', 'modified-raoult', 'fugacity-ratio'
+                            'raoult', 'modified-raoult'
                         ] = 'raoult',
                         fugacity_model: Literal[
                             'vdW', 'PR', 'RK', 'SRK'
@@ -634,7 +635,7 @@ class VLE(Equilibria):
                             'NRTL', 'UNIQUAC']
                         = 'NRTL',
                         solver_method: Literal[
-                            'root', 'least-squares', 'newton'
+                            'root', 'least-squares', 'fsolve'
                         ] = 'root',
                         message: Optional[str] = None,
                         **kwargs):
@@ -659,7 +660,7 @@ class VLE(Equilibria):
             The solver method to use for the calculation. Default is 'root'.
             - 'root' : Root-finding algorithm.
             - 'least-squares' : Least-squares optimization algorithm.
-            - 'newton' : Newton's method.
+            - 'fsolve' : SciPy's fsolve function.
         message : str, optional
             Message to display during the calculation. Default is None.
         **kwargs : dict, optional
@@ -726,16 +727,17 @@ class VLE(Equilibria):
             # looping through components
             for component in components:
                 # NOTE: equation source
+                VaPr_eq = None
                 # antoine equations [Pa]
                 VaPr_eq = Source_.eq_extractor(component, 'VaPr')
 
                 # NOTE: args
                 VaPr_args = VaPr_eq.args
                 # check args (SI)
-                VaPr_args_required = Source_.check_args(VaPr_args)
+                VaPr_args_required = Source_.check_args(component, VaPr_args)
 
                 # build args
-                _VaPr_args = Source_.build_args(VaPr_args_required)
+                _VaPr_args = Source_.build_args(component, VaPr_args_required)
 
                 # NOTE: update P and T
                 _VaPr_args['T'] = None
@@ -743,7 +745,7 @@ class VLE(Equilibria):
                 # set
                 VaPr_comp[component] = {
                     "value": VaPr_eq,
-                    "args": VaPr_args,
+                    "args": _VaPr_args,
                     "return": VaPr_eq.returns
                 }
 
@@ -774,7 +776,7 @@ class VLE(Equilibria):
             res = self._DT(params, **kwargs)
 
             # NOTE: set message
-            message = message if message is not None else "Bubble Temperature Calculation"
+            message = message if message is not None else "Dew Temperature Calculation"
             # add
             res['message'] = message
 
@@ -786,12 +788,12 @@ class VLE(Equilibria):
             return res
         except Exception as e:
             raise Exception(
-                f"Error in bubble_temperature calculation: {e}")
+                f"Error in dew_temperature calculation: {e}")
 
     def flash_isothermal(self,
                          inputs: Dict[str, float],
                          equilibrium_model: Literal[
-                             'raoult', 'modified-raoult', 'fugacity-ratio'
+                             'raoult', 'modified-raoult'
                          ] = 'raoult',
                          fugacity_model: Literal[
                              'vdW', 'PR', 'RK', 'SRK'
@@ -801,7 +803,7 @@ class VLE(Equilibria):
                          = 'NRTL',
                          solver_method: Literal[
                              'minimize', 'least_squares'
-                         ] = 'minimize',
+                         ] = 'least_squares',
                          flash_checker: bool = False,
                          message: Optional[str] = None,
                          **kwargs):
@@ -825,7 +827,7 @@ class VLE(Equilibria):
         activity_model : str, optional
             The activity coefficient model to use for the calculation. Default is 'NRTL'.
         solver_method : str, optional
-            The solver method to use for the calculation. Default is 'root'.
+            The solver method to use for the calculation. Default is 'least_squares'.
             - 'minimize' : Minimize the objective function.
             - 'least-squares' : Least-squares optimization algorithm.
         flash_checker : bool, optional
@@ -914,10 +916,10 @@ class VLE(Equilibria):
                 # NOTE: args
                 VaPr_args = VaPr_eq.args
                 # check args (SI)
-                VaPr_args_required = Source_.check_args(VaPr_args)
+                VaPr_args_required = Source_.check_args(component, VaPr_args)
 
                 # build args
-                _VaPr_args = Source_.build_args(VaPr_args_required)
+                _VaPr_args = Source_.build_args(component, VaPr_args_required)
 
                 # NOTE: update P and T
                 _VaPr_args['T'] = temperature
@@ -925,7 +927,7 @@ class VLE(Equilibria):
                 # set
                 VaPr_comp[component] = {
                     "value": VaPr_eq,
-                    "args": VaPr_args,
+                    "args": _VaPr_args,
                     "return": VaPr_eq.returns
                 }
 

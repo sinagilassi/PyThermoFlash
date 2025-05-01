@@ -94,7 +94,7 @@ inputs = {
     'pressure': [101.3, 'kPa']
 }
 
-# bubble point
+# ! bubble-point temperature calculation
 res_bp = vle.bubble_temperature(inputs=inputs)
 print(res_bp)
 
@@ -105,6 +105,6 @@ inputs = {
     'pressure': [101.3, 'kPa']
 }
 
-# dew point
+# ! dew-point temperature calculation
 res_dp = vle.dew_temperature(inputs=inputs)
 print(res_dp)

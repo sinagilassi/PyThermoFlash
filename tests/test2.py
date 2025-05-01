@@ -95,6 +95,10 @@ inputs = {
     'pressure': [7.0, 'kPa']
 }
 
-# bubble point
+# ! flash calculation (minimize)
 res_bp = vle.flash_isothermal(inputs=inputs, solver_method='minimize')
+print(res_bp)
+
+# ! flash calculation (least_squares)
+res_bp = vle.flash_isothermal(inputs=inputs)
 print(res_bp)

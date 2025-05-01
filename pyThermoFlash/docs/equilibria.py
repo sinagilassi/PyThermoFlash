@@ -171,6 +171,7 @@ class Equilibria:
                 },
                 "feed_mole_fraction": z_i,
                 "vapor_mole_fraction": y_i,
+                "liquid_mole_fraction": z_i,
                 "vapor_pressure": {
                     "value": VaPr_i,
                     "unit": "Pa"
@@ -303,6 +304,7 @@ class Equilibria:
                     "value": T,
                     "unit": "K"
                 },
+                "feed_mole_fraction": y_i,
                 "vapor_mole_fraction": y_i,
                 "liquid_mole_fraction": x_i,
                 "vapor_pressure": {
@@ -469,14 +471,15 @@ class Equilibria:
                 "equilibrium_model": eq_model,
                 "solver_method": solver_method,
                 "bubble_temperature": {
-                    "value": T,
+                    "value": float(T),
                     "unit": "K"
                 },
                 "pressure": {
-                    "value": P,
+                    "value": P_value,
                     "unit": "Pa"
                 },
                 "feed_mole_fraction": z_i,
+                "liquid_mole_fraction": z_i,
                 "vapor_mole_fraction": yi,
                 "vapor_pressure": {
                     "value": VaPr,
@@ -491,7 +494,7 @@ class Equilibria:
             # res
             return res
         except Exception as e:
-            raise Exception(e)
+            raise Exception(f"bubble temperature calculation failed! {e}")
 
     def fBT(self, x, params) -> float:
         '''
@@ -608,21 +611,66 @@ class Equilibria:
             T_g0 = kwargs.get('guess_temperature', 295)
 
             # SECTION: optimization
+            # pressure [Pa]
+            P_value = P['value']
+
             # params
             _params = {
                 'mole_fraction': z_i,
-                'pressure': P,
+                'pressure': P_value,
                 'vapor_pressure': VaPr_comp
             }
 
-            # bubble pressure [Pa]
-            _res0 = optimize.fsolve(self.fDT, T_g0, args=(_params))
-            # check if root found
-            if _res0.success is False:
-                raise Exception('root not found!')
-            # ->
-            # REVIEW
-            T = _res0[0]
+            # NOTE: dew temperature [K]
+            T = None
+
+            # check solver method
+            if solver_method == 'fsolve':
+                # ! fsolve
+                # bubble pressure [Pa]
+                _res0 = optimize.fsolve(
+                    self.fDT,
+                    T_g0,
+                    args=(_params),
+                    full_output=True)
+
+                # extract
+                T, infodict, ier, msg = _res0
+
+                # check if root found
+                if ier != 1:
+                    raise Exception(f'root not found!, {msg}')
+
+                # check
+                if len(T) == 1:
+                    T = float(T[0])
+
+            elif solver_method == 'root':
+                # ! root
+                _res0 = optimize.root(
+                    self.fDT, T_g0, args=(_params,))
+
+                # check
+                if not _res0.success:
+                    raise Exception(f'root not found!, {_res0.message}')
+
+                # extract
+                T = _res0.x[0]
+
+            elif solver_method == 'least-squares':
+                # ! least-squares
+                _res0 = optimize.least_squares(
+                    self.fDT, T_g0, args=(_params,))
+
+                # check
+                if not _res0.success:
+                    raise Exception(f'root not found!, {_res0.message}')
+
+                # extract
+                T = _res0.x[0]
+
+            else:
+                raise Exception('solver method not found!')
 
             # NOTE: vapor pressure [Pa]
             # at T (Tg)
@@ -650,7 +698,7 @@ class Equilibria:
             # NOTE: vapor mole fraction
             xi = np.zeros(self.component_num)
             for i in range(self.component_num):
-                xi[i] = z_i[i]*P/VaPr_i[i]
+                xi[i] = z_i[i]*P_value/VaPr_i[i]
 
             # NOTE: k-ratio
             K_i = np.multiply(xi, 1/z_i)
@@ -659,16 +707,18 @@ class Equilibria:
             res = {
                 "components": self.components,
                 "equilibrium_model": eq_model,
+                "solver_method": solver_method,
                 "dew_temperature": {
-                    "value": T,
+                    "value": float(T),
                     "unit": "K"
                 },
                 "pressure": {
-                    "value": P,
+                    "value": P_value,
                     "unit": "Pa"
                 },
                 "feed_mole_fraction": z_i,
                 "liquid_mole_fraction": xi,
+                "vapor_mole_fraction": z_i,
                 "vapor_pressure": {
                     "value": VaPr_i,
                     "unit": "Pa"
@@ -682,7 +732,7 @@ class Equilibria:
             # res
             return res
         except Exception as e:
-            raise Exception(e)
+            raise Exception(f'dew temperature calculation failed! {e}')
 
     def fDT(self, x, params) -> float:
         '''
@@ -733,7 +783,7 @@ class Equilibria:
             VaPr_i[i] = VaPr_
 
         # NOTE: dew pressure [Pa]
-        DePr = np.dot(z_i, VaPr_i)
+        DePr = 1/np.dot(z_i, 1/VaPr_i)
 
         # NOTE: loss function
         loss = abs((P/DePr) - 1)
@@ -1034,15 +1084,15 @@ class Equilibria:
             res = {
                 "components": self.components,
                 "equilibrium_model": eq_model,
-                "feed_mole_fraction": z_i,
                 "V_F_ratio": {
-                    "value": V_F_ratio,
+                    "value": float(V_F_ratio),
                     "unit": "dimensionless"
                 },
                 "L_F_ratio": {
-                    "value": L_F_ratio,
+                    "value": float(L_F_ratio),
                     "unit": "dimensionless"
                 },
+                "feed_mole_fraction": z_i,
                 "liquid_mole_fraction": xi,
                 "vapor_mole_fraction": yi,
                 "vapor_pressure": {

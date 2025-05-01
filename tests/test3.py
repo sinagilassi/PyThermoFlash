@@ -95,8 +95,8 @@ inputs = {
 }
 
 # ! bubble point pressure calculation
-# res_bp = vle.bubble_pressure(inputs=inputs)
-# print(res_bp)
+res_bp = vle.bubble_pressure(inputs=inputs)
+print(res_bp)
 
 # ! dew point pressure calculation
 res_dp = vle.dew_pressure(inputs=inputs)
