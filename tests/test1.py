@@ -88,14 +88,53 @@ print(vle.datasource)
 print(vle.equationsource)
 
 # SECTION: bubble-temperature point calculation
+# alpha (Binary Interaction Parameter)
+alpha = [
+    [0, 0.3],
+    [0.3, 0]
+]
+# a_ij
+a_ij = [
+    [0.0, -2.885],
+    [2.191, 0.0]
+]
+# b_ij
+b_ij = [
+    [0.0, 1124],
+    [-863.7, 0.0]
+]
+# c_ij
+c_ij = [
+    [0.0, 0.0],
+    [0.0, 0.0]
+]
+# d_ij
+d_ij = [
+    [0.0, 0.0],
+    [0.0, 0.0]
+]
+# activity model
+activity_inputs = {
+    'activity_model': 'NRTL',
+    'alpha': alpha,
+    'a_ij': a_ij,
+    'b_ij': b_ij,
+    'c_ij': c_ij,
+    'd_ij': d_ij
+}
+
 # inputs
 inputs = {
     'mole_fraction': {'benzene': 0.26, 'toluene': 0.74},
-    'pressure': [101.3, 'kPa']
+    'pressure': [101.3, 'kPa'],
 }
 
 # ! bubble-point temperature calculation
-res_bp = vle.bubble_temperature(inputs=inputs)
+res_bp = vle.bubble_temperature(
+    inputs=inputs,
+    equilibrium_model='modified-raoult',
+    activity_model='NRTL',
+    activity_inputs=activity_inputs)
 print(res_bp)
 
 # SECTION: dew-temperature point calculation
@@ -106,5 +145,9 @@ inputs = {
 }
 
 # ! dew-point temperature calculation
-res_dp = vle.dew_temperature(inputs=inputs)
+res_dp = vle.dew_temperature(
+    inputs=inputs,
+    equilibrium_model='modified-raoult',
+    activity_model='NRTL',
+    activity_inputs=activity_inputs)
 print(res_dp)

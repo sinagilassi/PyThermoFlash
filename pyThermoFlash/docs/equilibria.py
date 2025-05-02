@@ -68,6 +68,8 @@ class Equilibria:
             - T: temperature [K]
         kwargs : dict
             additional parameters for the calculation
+                - `activity_inputs`: information for the calculation
+
 
         Returns
         -------
@@ -93,6 +95,15 @@ class Equilibria:
             1. Calculate the vapor pressure of each component at the given temperature (T).
             2. Calculate the bubble pressure (P) using `Raoult's law` or other methods.
             3. Calculate the mole fraction in the vapor phase (yi) using `Raoult's law` or other methods.
+
+        - inputs hold the information for the calculation:
+            `alpha_ij`: binary interaction parameter
+            `dg_ij`: dg_ij parameter
+            `dU_ij`: dU_ij parameter
+            `a_ij`: a_ij parameter
+            `b_ij`: b_ij parameter
+            `c_ij`: c_ij parameter
+            `d_ij`: d_ij parameter
         '''
         try:
             # SECTION: data
@@ -115,6 +126,9 @@ class Equilibria:
             # convert to dict
             z_i_comp = self.__mole_fraction_comp(z_i)
 
+            # temperature [K]
+            T_value = T['value']
+
             # SECTION: activity coefficient
             # NOTE: init model
             # init NRTL model
@@ -123,12 +137,14 @@ class Equilibria:
             # NOTE: check model
             if activity_model == 'NRTL':
                 # calculate activity
-                res_ = activity.NRTL(self.components, z_i_comp, T, **kwargs)
+                res_ = activity.NRTL(
+                    self.components, z_i_comp, T_value, **kwargs)
                 # extract
                 AcCo_i = res_['value']
             elif activity_model == 'UNIQUAC':
                 # calculate activity
-                res_ = activity.UNIQUAC(self.components, z_i_comp, T, **kwargs)
+                res_ = activity.UNIQUAC(
+                    self.components, z_i_comp, T_value, **kwargs)
                 # extract
                 AcCo_i = res_['value']
             else:
@@ -166,7 +182,7 @@ class Equilibria:
                     "unit": "Pa"
                 },
                 "temperature": {
-                    "value": T,
+                    "value": T_value,
                     "unit": "K"
                 },
                 "feed_mole_fraction": z_i,
@@ -276,10 +292,10 @@ class Equilibria:
             # looping over components
             for i, component in enumerate(self.components):
                 # vapor pressure [Pa]
-                VaPr_i[i] = VaPr_comp[component]['value']*AcCo_i[i]
+                VaPr_i[i] = VaPr_comp[component]['value']
 
             # NOTE: dew pressure [Pa]
-            DePr = 1/np.dot(y_i, 1/VaPr_i)
+            DePr = 1/np.dot(y_i, 1/(VaPr_i*AcCo_i))
 
             # NOTE: liquid mole fraction
             x_i = np.zeros(self.component_num)
@@ -287,7 +303,7 @@ class Equilibria:
             # looping over components
             for i in range(self.component_num):
                 # mole fraction
-                x_i[i] = y_i[i]*DePr/VaPr_i[i]
+                x_i[i] = y_i[i]*DePr/VaPr_i[i]*AcCo_i[i]
 
             # NOTE: k-ratio
             K_i = np.multiply(y_i, 1/x_i)
@@ -312,7 +328,7 @@ class Equilibria:
                     "unit": "Pa"
                 },
                 "activity_coefficient": {
-                    "value": np.ones(self.component_num),
+                    "value": AcCo_i,
                     "unit": "dimensionless"
                 },
                 "K_ratio": {
@@ -339,6 +355,15 @@ class Equilibria:
         kwargs : dict
             additional parameters for the calculation
             - `guess_temperature`: initial guess temperature [K], default is 295 K
+            - `activity_inputs`: activity model inputs consists of:
+                - activity_model: activity model name (NRTL, UNIQUAC)
+                - alpha_ij: binary interaction parameter
+                - dg_ij: dg_ij parameter
+                - dU_ij: dU_ij parameter
+                - a_ij: a_ij parameter
+                - b_ij: b_ij parameter
+                - c_ij: c_ij parameter
+                - d_ij: d_ij parameter
 
         Notes
         -----
@@ -375,9 +400,16 @@ class Equilibria:
             # NOTE: vapor pressure equation [Pa]
             VaPr_comp = params['vapor_pressure']
 
-            # NOTE: kwargs
+            # SECTION: kwargs
             # temperature guess [K]
             T_g0 = kwargs.get('guess_temperature', 295)
+
+            # NOTE: activity model inputs
+            activity_inputs = kwargs.get('activity_inputs', None)
+            if activity_inputs is not None:
+                # check activity model
+                if 'activity_model' in activity_inputs:
+                    activity_model = activity_inputs['activity_model']
 
             # SECTION: optimization
             # pressure [Pa]

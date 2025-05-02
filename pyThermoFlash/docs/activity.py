@@ -38,21 +38,37 @@ class Activity:
         '''
         try:
             # SECTION: check src
+            # extract activity model inputs
+            activity_inputs = kwargs.get('activity_inputs', None)
+            if activity_inputs is not None:
+                # check if activity_inputs is a dictionary
+                if not isinstance(activity_inputs, dict):
+                    raise ValueError(
+                        "activity_inputs must be a dictionary.")
+                # check if activity_inputs is empty
+                if len(activity_inputs) == 0:
+                    raise ValueError(
+                        "activity_inputs cannot be empty.")
+
             # NOTE: method 1
             # Δg_ij, interaction energy parameter
-            dg_ij_src = kwargs.get(
-                'interaction-energy-parameter', None) or kwargs.get('dg_ij', None)
+            dg_ij_src = activity_inputs.get(
+                'interaction-energy-parameter', None) or activity_inputs.get('dg_ij', None) or activity_inputs.get('dg', None)
 
             # NOTE: method 2
             # constants a, b, and c
-            a_ij_src = kwargs.get('a_ij', None)
-            b_ij_src = kwargs.get('b_ij', None)
-            c_ij_src = kwargs.get('c_ij', None)
-            d_ij_src = kwargs.get('d_ij', None)
+            a_ij_src = activity_inputs.get(
+                'a_ij', None) or activity_inputs.get('a', None)
+            b_ij_src = activity_inputs.get(
+                'b_ij', None) or activity_inputs.get('b', None)
+            c_ij_src = activity_inputs.get(
+                'c_ij', None) or activity_inputs.get('c', None)
+            d_ij_src = activity_inputs.get(
+                'd_ij', None) or activity_inputs.get('d', None)
 
             # NOTE: α_ij, non-randomness parameter
-            alpha_ij_src = kwargs.get(
-                'non-randomness-parameter', None) or kwargs.get('alpha_ij', None)
+            alpha_ij_src = activity_inputs.get(
+                'non-randomness-parameter', None) or activity_inputs.get('alpha_ij', None) or activity_inputs.get('alpha', None)
             if alpha_ij_src is None:
                 raise ValueError(
                     "No valid source provided for non-randomness parameter (α_ij).")
@@ -77,7 +93,7 @@ class Activity:
                 # ! a_ij
                 if isinstance(a_ij_src, TableMatrixData):
                     a_ij = a_ij_src.mat('a', components)
-                elif isinstance(a_ij_src, List[List[float]]):
+                elif isinstance(a_ij_src, list):
                     a_ij = np.array(a_ij_src)
                 elif isinstance(a_ij_src, np.ndarray):
                     a_ij = a_ij_src
@@ -88,7 +104,7 @@ class Activity:
                 # ! b_ij
                 if isinstance(b_ij_src, TableMatrixData):
                     b_ij = b_ij_src.mat('b', components)
-                elif isinstance(b_ij_src, List[List[float]]):
+                elif isinstance(b_ij_src, list):
                     b_ij = np.array(b_ij_src)
                 elif isinstance(b_ij_src, np.ndarray):
                     b_ij = b_ij_src
@@ -99,7 +115,7 @@ class Activity:
                 # ! c_ij
                 if isinstance(c_ij_src, TableMatrixData):
                     c_ij = c_ij_src.mat('c', components)
-                elif isinstance(c_ij_src, List[List[float]]):
+                elif isinstance(c_ij_src, list):
                     c_ij = np.array(c_ij_src)
                 elif isinstance(c_ij_src, np.ndarray):
                     c_ij = c_ij_src
@@ -110,7 +126,7 @@ class Activity:
                 # ! d_ij
                 if isinstance(d_ij_src, TableMatrixData):
                     d_ij = d_ij_src.mat('d', components)
-                elif isinstance(d_ij_src, List[List[float]]):
+                elif isinstance(d_ij_src, list):
                     d_ij = np.array(d_ij_src)
                 elif isinstance(d_ij_src, np.ndarray):
                     d_ij = d_ij_src
@@ -121,7 +137,7 @@ class Activity:
                 # use dg_ij
                 if isinstance(dg_ij_src, TableMatrixData):
                     dg_ij = dg_ij_src.mat('dg', components)
-                elif isinstance(dg_ij_src, List[List[float]]):
+                elif isinstance(dg_ij_src, list):
                     dg_ij = np.array(dg_ij_src)
                 elif isinstance(dg_ij_src, np.ndarray):
                     dg_ij = dg_ij_src
@@ -138,7 +154,7 @@ class Activity:
             # α_ij, non-randomness parameter
             if isinstance(alpha_ij_src, TableMatrixData):
                 alpha_ij = alpha_ij_src.mat('alpha', components)
-            elif isinstance(alpha_ij_src, List[List[float]]):
+            elif isinstance(alpha_ij_src, list):
                 alpha_ij = np.array(alpha_ij_src)
             elif isinstance(alpha_ij_src, np.ndarray):
                 alpha_ij = alpha_ij_src

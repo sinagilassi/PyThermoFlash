@@ -273,7 +273,7 @@ class VLE(Equilibria):
             }
 
             # res
-            res = self._BP(params)
+            res = self._BP(params, **kwargs)
 
             # NOTE: set message
             message = message if message is not None else "Bubble Pressure Calculation"
@@ -437,10 +437,10 @@ class VLE(Equilibria):
             }
 
             # res
-            res = self._DP(params)
+            res = self._DP(params, **kwargs)
 
             # NOTE: set message
-            message = message if message is not None else "Bubble Pressure Calculation"
+            message = message if message is not None else "Dew Pressure Calculation"
             # add
             res['message'] = message
 
@@ -550,6 +550,8 @@ class VLE(Equilibria):
             # mole fractions based on components id
             mole_fractions = [mole_fractions[component]
                               for component in components]
+
+            # SECTION: check for activity model
 
             # SECTION: extract source
             Source_ = Source(self.model_source)

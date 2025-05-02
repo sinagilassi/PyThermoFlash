@@ -88,16 +88,55 @@ print(vle.datasource)
 print(vle.equationsource)
 
 # SECTION: bubble-point pressure calculation
+# alpha (Binary Interaction Parameter)
+alpha = [
+    [0, 0.3],
+    [0.3, 0]
+]
+# a_ij
+a_ij = [
+    [0.0, -2.885],
+    [2.191, 0.0]
+]
+# b_ij
+b_ij = [
+    [0.0, 1124],
+    [-863.7, 0.0]
+]
+# c_ij
+c_ij = [
+    [0.0, 0.0],
+    [0.0, 0.0]
+]
+# d_ij
+d_ij = [
+    [0.0, 0.0],
+    [0.0, 0.0]
+]
+
+# activity inputs
+activity_inputs = {
+    'alpha': alpha,
+    'a_ij': a_ij,
+    'b_ij': b_ij,
+    'c_ij': c_ij,
+    'd_ij': d_ij
+}
+
 # inputs
 inputs = {
     'mole_fraction': {'benzene': 0.26, 'toluene': 0.74},
-    'temperature': [80, 'C']
+    'temperature': [80, 'C'],
 }
 
 # ! bubble point pressure calculation
-res_bp = vle.bubble_pressure(inputs=inputs)
+res_bp = vle.bubble_pressure(
+    inputs=inputs, equilibrium_model='modified-raoult',
+    activity_model='NRTL', activity_inputs=activity_inputs)
 print(res_bp)
 
 # ! dew point pressure calculation
-res_dp = vle.dew_pressure(inputs=inputs)
+res_dp = vle.dew_pressure(
+    inputs=inputs, equilibrium_model='modified-raoult',
+    activity_model='NRTL', activity_inputs=activity_inputs)
 print(res_dp)
