@@ -165,7 +165,21 @@ class VLE(Equilibria):
 
         Returns
         -------
-
+        res : dict
+            Dictionary containing the results of the calculation.
+            - bubble_pressure: bubble pressure [Pa]
+            - temperature: temperature [K]
+            - feed_mole_fraction: liquid mole fraction (xi)
+            - vapor_mole_fraction: vapor mole fraction (yi)
+            - liquid_mole_fraction: liquid mole fraction (xi)
+            - vapor_pressure: vapor pressure [Pa]
+            - activity_coefficient: activity coefficient [dimensionless]
+            - K_ratio: K-ratio [dimensionless]
+            - equilibrium_model: equilibrium model used for the calculation
+            - fugacity_model: fugacity model used for the calculation
+            - activity_model: activity coefficient model used for the calculation
+            - components: list of components used in the calculation
+            - message: message displayed during the calculation
 
         Notes
         -----
@@ -284,6 +298,7 @@ class VLE(Equilibria):
             res['components'] = components
 
             # NOTE: models
+            res["equilibrium_model"] = equilibrium_model
             res["fugacity_model"] = res_['fugacity_model']
             res["activity_model"] = res_['activity_model']
 
@@ -330,6 +345,20 @@ class VLE(Equilibria):
 
         Returns
         -------
+        res : dict
+            Dictionary containing the results of the calculation.
+            - dew_pressure: dew pressure [Pa]
+            - temperature: temperature [K]
+            - feed_mole_fraction: vapor mole fraction (yi)
+            - liquid_mole_fraction: liquid mole fraction (xi)
+            - vapor_pressure: vapor pressure [Pa]
+            - activity_coefficient: activity coefficient [dimensionless]
+            - K_ratio: K-ratio [dimensionless]
+            - equilibrium_model: equilibrium model used for the calculation
+            - fugacity_model: fugacity model used for the calculation
+            - activity_model: activity coefficient model used for the calculation
+            - components: list of components used in the calculation
+            - message: message displayed during the calculation
 
         Notes
         -----
@@ -448,6 +477,7 @@ class VLE(Equilibria):
             res['components'] = components
 
             # NOTE: models
+            res["equilibrium_model"] = equilibrium_model
             res["fugacity_model"] = res_['fugacity_model']
             res["activity_model"] = res_['activity_model']
 
@@ -504,6 +534,22 @@ class VLE(Equilibria):
 
         Returns
         -------
+        res : dict
+            Dictionary containing the results of the calculation.
+            - bubble_temperature: bubble temperature [K]
+            - pressure: pressure [Pa]
+            - feed_mole_fraction: liquid mole fraction (xi)
+            - vapor_mole_fraction: vapor mole fraction (yi)
+            - liquid_mole_fraction: liquid mole fraction (xi)
+            - vapor_pressure: vapor pressure [Pa]
+            - activity_coefficient: activity coefficient [dimensionless]
+            - K_ratio: K-ratio [dimensionless]
+            - equilibrium_model: equilibrium model used for the calculation
+            - fugacity_model: fugacity model used for the calculation
+            - activity_model: activity coefficient model used for the calculation
+            - components: list of components used in the calculation
+            - message: message displayed during the calculation
+            - solver_method: solver method used for the calculation
 
         Notes
         -----
@@ -615,9 +661,14 @@ class VLE(Equilibria):
             # add
             res['message'] = message
 
+            # NOTE: components
+            res['components'] = components
+
             # NOTE: models
+            res["equilibrium_model"] = equilibrium_model
             res["fugacity_model"] = res_['fugacity_model']
             res["activity_model"] = res_['activity_model']
+            res["solver_method"] = solver_method
 
             # returns
             return res
@@ -672,7 +723,21 @@ class VLE(Equilibria):
 
         Returns
         -------
-
+        res : dict
+            Dictionary containing the results of the calculation.
+            - dew_temperature: dew temperature [K]
+            - pressure: pressure [Pa]
+            - feed_mole_fraction: vapor mole fraction (yi)
+            - liquid_mole_fraction: liquid mole fraction (xi)
+            - vapor_pressure: vapor pressure [Pa]
+            - activity_coefficient: activity coefficient [dimensionless]
+            - K_ratio: K-ratio [dimensionless]
+            - equilibrium_model: equilibrium model used for the calculation
+            - fugacity_model: fugacity model used for the calculation
+            - activity_model: activity coefficient model used for the calculation
+            - components: list of components used in the calculation
+            - message: message displayed during the calculation
+            - solver_method: solver method used for the calculation
 
         Notes
         -----
@@ -782,9 +847,14 @@ class VLE(Equilibria):
             # add
             res['message'] = message
 
+            # NOTE: components
+            res['components'] = components
+
             # NOTE: models
+            res["equilibrium_model"] = equilibrium_model
             res["fugacity_model"] = res_['fugacity_model']
             res["activity_model"] = res_['activity_model']
+            res["solver_method"] = solver_method
 
             # returns
             return res
@@ -840,10 +910,26 @@ class VLE(Equilibria):
             Additional parameters for the model.
             - `guess_V_F_ratio`: initial guess for the vapor-to-liquid ratio (V/F), default is 0.5
 
-
         Returns
         -------
-
+        res : dict
+            Dictionary containing the results of the calculation.
+            - vapor_to_liquid_ratio: V/F ratio [dimensionless]
+            - liquid_to_vapor_ratio: L/F ratio [dimensionless]
+            - feed_mole_fraction: liquid mole fraction (zi)
+            - liquid_mole_fraction: liquid mole fraction (xi)
+            - vapor_mole_fraction: vapor mole fraction (yi)
+            - vapor_pressure: vapor pressure [Pa]
+            - K_ratio: K-ratio [dimensionless]
+            - temperature: temperature [K]
+            - pressure: pressure [Pa]
+            - equilibrium_model: equilibrium model used for the calculation
+            - fugacity_model: fugacity model used for the calculation
+            - activity_model: activity coefficient model used for the calculation
+            - components: list of components used in the calculation
+            - message: message displayed during the calculation
+            - solver_method: solver method used for the calculation
+            - flash_checker: flash checker used for the calculation
 
         Notes
         -----
@@ -983,9 +1069,15 @@ class VLE(Equilibria):
             # add
             res['message'] = message
 
+            # NOTE: components
+            res['components'] = components
+
             # NOTE: models
+            res["equilibrium_model"] = equilibrium_model
+            res["flash_checker"] = flash_checker
             res["fugacity_model"] = res_['fugacity_model']
             res["activity_model"] = res_['activity_model']
+            res["solver_method"] = solver_method
 
             # res
             return res

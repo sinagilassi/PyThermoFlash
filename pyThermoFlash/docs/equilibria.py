@@ -77,11 +77,12 @@ class Equilibria:
             Dictionary containing the following:
             - bubble_pressure: bubble pressure [Pa]
             - temperature: temperature [K]
-            - feed_mole_fraction: liquid mole fraction [dimensionless]
-            - vapor_mole_fraction: vapor mole fraction [dimensionless]
+            - feed_mole_fraction: liquid mole fraction (xi)
+            - vapor_mole_fraction: vapor mole fraction (yi)
+            - liquid_mole_fraction: liquid mole fraction (xi)
             - vapor_pressure: vapor pressure [Pa]
             - activity_coefficient: activity coefficient [dimensionless]
-            - K_ratio: K ratio [dimensionless]
+            - K_ratio: K-ratio [dimensionless]
 
         Notes
         -----
@@ -175,8 +176,6 @@ class Equilibria:
 
             # NOTE: results
             res = {
-                "components": self.components,
-                "equilibrium_model": eq_model,
                 "bubble_pressure": {
                     "value": float(BuPr),
                     "unit": "Pa"
@@ -222,7 +221,16 @@ class Equilibria:
 
         Returns
         -------
-
+        res : dict
+            Dictionary containing the following:
+            - dew_pressure: dew pressure [Pa]
+            - temperature: temperature [K]
+            - feed_mole_fraction: vapor mole fraction (yi)
+            - vapor_mole_fraction: vapor mole fraction (yi)
+            - liquid_mole_fraction: liquid mole fraction (xi)
+            - vapor_pressure: vapor pressure [Pa]
+            - activity_coefficient: activity coefficient [dimensionless]
+            - K_ratio: K-ratio [dimensionless]
 
 
 
@@ -310,8 +318,6 @@ class Equilibria:
 
             # res
             res = {
-                "components": self.components,
-                "equilibrium_model": eq_model,
                 "dew_pressure": {
                     "value": float(DePr),
                     "unit": "Pa"
@@ -365,6 +371,19 @@ class Equilibria:
                 - c_ij: c_ij parameter
                 - d_ij: d_ij parameter
 
+        Returns
+        -------
+        res : dict
+            Dictionary containing the following:
+            - bubble_temperature: bubble temperature [K]
+            - pressure: pressure [Pa]
+            - feed_mole_fraction: liquid mole fraction (xi)
+            - vapor_mole_fraction: vapor mole fraction (yi)
+            - liquid_mole_fraction: liquid mole fraction (xi)
+            - vapor_pressure: vapor pressure [Pa]
+            - activity_coefficient: activity coefficient [dimensionless]
+            - K_ratio: K-ratio [dimensionless]
+
         Notes
         -----
         The summary of the calculation is as follows:
@@ -404,12 +423,17 @@ class Equilibria:
             # temperature guess [K]
             T_g0 = kwargs.get('guess_temperature', 295)
 
-            # NOTE: activity model inputs
-            activity_inputs = kwargs.get('activity_inputs', None)
-            if activity_inputs is not None:
-                # check activity model
-                if 'activity_model' in activity_inputs:
-                    activity_model = activity_inputs['activity_model']
+            # SECTION: activity coefficient
+            # NOTE: mole fraction dict
+            # convert to dict
+            z_i_comp = self.__mole_fraction_comp(z_i)
+
+            # NOTE: init model
+            # init NRTL model
+            activity = Activity()
+
+            # activity inputs
+            activity_inputs = kwargs.get('activity_inputs', {})
 
             # SECTION: optimization
             # pressure [Pa]
@@ -418,8 +442,12 @@ class Equilibria:
             # params
             _params = {
                 'mole_fraction': z_i,
+                'mole_fraction_comp': z_i_comp,
                 'pressure': P_value,
-                'vapor_pressure': VaPr_comp
+                'vapor_pressure': VaPr_comp,
+                'activity_model': activity_model,
+                'activity': activity,
+                'activity_inputs': activity_inputs
             }
 
             # NOTE: bubble temperature [K]
@@ -489,19 +517,34 @@ class Equilibria:
                 # set
                 VaPr[i] = VaPr_
 
+            # SECTION: calculate activity coefficient
+            # NOTE: check model
+            if activity_model == 'NRTL':
+                # calculate activity
+                res_ = activity.NRTL(
+                    self.components, z_i_comp, T, **kwargs)
+                # extract
+                AcCo_i = res_['value']
+            elif activity_model == 'UNIQUAC':
+                # calculate activity
+                res_ = activity.UNIQUAC(
+                    self.components, z_i_comp, T, **kwargs)
+                # extract
+                AcCo_i = res_['value']
+            else:
+                # equals unity for ideal solution
+                AcCo_i = np.ones(self.component_num)
+
             # vapor mole fraction
             yi = np.zeros(self.component_num)
             for i in range(self.component_num):
-                yi[i] = z_i[i]*VaPr[i]/P_value
+                yi[i] = z_i[i]*AcCo_i[i]*VaPr[i]/P_value
 
             # NOTE: k-ratio
             K_i = np.multiply(yi, 1/z_i)
 
             # NOTE: results
             res = {
-                "components": self.components,
-                "equilibrium_model": eq_model,
-                "solver_method": solver_method,
                 "bubble_temperature": {
                     "value": float(T),
                     "unit": "K"
@@ -519,6 +562,10 @@ class Equilibria:
                 },
                 "K_ratio": {
                     "value": K_i,
+                    "unit": "dimensionless"
+                },
+                "activity_coefficient": {
+                    "value": AcCo_i,
                     "unit": "dimensionless"
                 }
             }
@@ -548,10 +595,34 @@ class Equilibria:
         # NOTE: params
         # mole fraction [array]
         z_i = params['mole_fraction']
+        z_i_comp = params['mole_fraction_comp']
         # pressure [Pa]
         P = params['pressure']
         # vapor pressure calculation
         VaPr_comp = params['vapor_pressure']
+        # activity model
+        activity_model = params['activity_model']
+        # activity
+        activity: Activity = params['activity']
+        # activity inputs
+        activity_inputs = params['activity_inputs']
+
+        # NOTE: check model
+        if activity_model == 'NRTL':
+            # calculate activity
+            res_ = activity.NRTL(
+                self.components, z_i_comp, T, activity_inputs=activity_inputs)
+            # extract
+            AcCo_i = res_['value']
+        elif activity_model == 'UNIQUAC':
+            # calculate activity
+            res_ = activity.UNIQUAC(
+                self.components, z_i_comp, T, activity_inputs=activity_inputs)
+            # extract
+            AcCo_i = res_['value']
+        else:
+            # equals unity for ideal solution
+            AcCo_i = np.ones(self.component_num)
 
         # NOTE: calculate vapor-pressure
         # vapor pressure [Pa]
@@ -577,7 +648,7 @@ class Equilibria:
             VaPr_i[i] = VaPr_
 
         # NOTE: bubble pressure [Pa]
-        BuPr = np.dot(z_i, VaPr_i)
+        BuPr = np.dot(z_i*AcCo_i, VaPr_i)
 
         # NOTE: loss
         loss = abs((P/BuPr) - 1)
@@ -600,8 +671,16 @@ class Equilibria:
 
         Returns
         -------
-
-
+        res : dict
+            Dictionary containing the following:
+            - dew_temperature: dew temperature [K]
+            - pressure: pressure [Pa]
+            - feed_mole_fraction: vapor mole fraction (yi)
+            - vapor_mole_fraction: vapor mole fraction (yi)
+            - liquid_mole_fraction: liquid mole fraction (xi)
+            - vapor_pressure: vapor pressure [Pa]
+            - activity_coefficient: activity coefficient [dimensionless]
+            - K_ratio: K-ratio [dimensionless]
 
         Notes
         -----
@@ -642,6 +721,18 @@ class Equilibria:
             # temperature guess [K]
             T_g0 = kwargs.get('guess_temperature', 295)
 
+            # SECTION: activity coefficient
+            # NOTE: mole fraction dict
+            # convert to dict
+            z_i_comp = self.__mole_fraction_comp(z_i)
+
+            # NOTE: init model
+            # init NRTL model
+            activity = Activity()
+
+            # activity inputs
+            activity_inputs = kwargs.get('activity_inputs', {})
+
             # SECTION: optimization
             # pressure [Pa]
             P_value = P['value']
@@ -649,8 +740,12 @@ class Equilibria:
             # params
             _params = {
                 'mole_fraction': z_i,
+                'mole_fraction_comp': z_i_comp,
                 'pressure': P_value,
-                'vapor_pressure': VaPr_comp
+                'vapor_pressure': VaPr_comp,
+                'activity_model': activity_model,
+                'activity': activity,
+                'activity_inputs': activity_inputs
             }
 
             # NOTE: dew temperature [K]
@@ -727,19 +822,34 @@ class Equilibria:
                 # save
                 VaPr_i[i] = VaPr_
 
+            # NOTE: calculate activity coefficient
+            # NOTE: check model
+            if activity_model == 'NRTL':
+                # calculate activity
+                res_ = activity.NRTL(
+                    self.components, z_i_comp, T, **kwargs)
+                # extract
+                AcCo_i = res_['value']
+            elif activity_model == 'UNIQUAC':
+                # calculate activity
+                res_ = activity.UNIQUAC(
+                    self.components, z_i_comp, T, **kwargs)
+                # extract
+                AcCo_i = res_['value']
+            else:
+                # equals unity for ideal solution
+                AcCo_i = np.ones(self.component_num)
+
             # NOTE: vapor mole fraction
             xi = np.zeros(self.component_num)
             for i in range(self.component_num):
-                xi[i] = z_i[i]*P_value/VaPr_i[i]
+                xi[i] = (z_i[i]*P_value)/(VaPr_i[i]*AcCo_i[i])
 
             # NOTE: k-ratio
             K_i = np.multiply(xi, 1/z_i)
 
             # NOTE: results
             res = {
-                "components": self.components,
-                "equilibrium_model": eq_model,
-                "solver_method": solver_method,
                 "dew_temperature": {
                     "value": float(T),
                     "unit": "K"
@@ -759,6 +869,10 @@ class Equilibria:
                     "value": K_i,
                     "unit": "dimensionless"
                 },
+                "activity_coefficient": {
+                    "value": AcCo_i,
+                    "unit": "dimensionless"
+                }
             }
 
             # res
@@ -786,10 +900,17 @@ class Equilibria:
         # NOTE: params
         # mole fraction [array]
         z_i = params['mole_fraction']
+        z_i_comp = params['mole_fraction_comp']
         # pressure [Pa]
         P = params['pressure']
         # vapor pressure calculation
         VaPr_comp = params['vapor_pressure']
+        # activity model
+        activity_model = params['activity_model']
+        # activity
+        activity: Activity = params['activity']
+        # activity inputs
+        activity_inputs = params['activity_inputs']
 
         # NOTE: calculate vapor-pressure
         # vapor pressure [Pa]
@@ -814,8 +935,26 @@ class Equilibria:
             # save
             VaPr_i[i] = VaPr_
 
+        # NOTE: calculate activity coefficient
+        # NOTE: check model
+        if activity_model == 'NRTL':
+            # calculate activity
+            res_ = activity.NRTL(
+                self.components, z_i_comp, T, activity_inputs=activity_inputs)
+            # extract
+            AcCo_i = res_['value']
+        elif activity_model == 'UNIQUAC':
+            # calculate activity
+            res_ = activity.UNIQUAC(
+                self.components, z_i_comp, T, activity_inputs=activity_inputs)
+            # extract
+            AcCo_i = res_['value']
+        else:
+            # equals unity for ideal solution
+            AcCo_i = np.ones(self.component_num)
+
         # NOTE: dew pressure [Pa]
-        DePr = 1/np.dot(z_i, 1/VaPr_i)
+        DePr = 1/np.dot(z_i, 1/(VaPr_i*AcCo_i))
 
         # NOTE: loss function
         loss = abs((P/DePr) - 1)
@@ -953,8 +1092,17 @@ class Equilibria:
 
         Returns
         -------
-
-
+        res : dict
+            Dictionary containing the following:
+            - vapor_to_liquid_ratio: V/F ratio [dimensionless]
+            - liquid_to_vapor_ratio: L/F ratio [dimensionless]
+            - feed_mole_fraction: liquid mole fraction (zi)
+            - liquid_mole_fraction: liquid mole fraction (xi)
+            - vapor_mole_fraction: vapor mole fraction (yi)
+            - vapor_pressure: vapor pressure [Pa]
+            - K_ratio: K-ratio [dimensionless]
+            - temperature: temperature [K]
+            - pressure: pressure [Pa]
 
         Notes
         -----
@@ -1114,8 +1262,6 @@ class Equilibria:
 
             # NOTE: results
             res = {
-                "components": self.components,
-                "equilibrium_model": eq_model,
                 "V_F_ratio": {
                     "value": float(V_F_ratio),
                     "unit": "dimensionless"
@@ -1143,7 +1289,6 @@ class Equilibria:
                     "value": P_value,
                     "unit": "Pa"
                 },
-                "solver_method": solver_method
             }
 
             # res

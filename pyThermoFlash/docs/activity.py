@@ -5,6 +5,7 @@ import numpy as np
 import pyThermoModels as ptm
 from typing import List, Dict
 from pyThermoDB import TableMatrixData
+from typing import Any, Dict, List
 
 # local
 
@@ -19,7 +20,8 @@ class Activity:
     def NRTL(self,
              components: List[str],
              z_i_comp: Dict[str, float],
-             temperature: float, **kwargs):
+             temperature: float,
+             **kwargs):
         '''
         NRTL activity model for calculating activity coefficients.
 
@@ -40,6 +42,8 @@ class Activity:
             # SECTION: check src
             # extract activity model inputs
             activity_inputs = kwargs.get('activity_inputs', None)
+
+            # NOTE: check if activity_inputs is a dictionary
             if activity_inputs is not None:
                 # check if activity_inputs is a dictionary
                 if not isinstance(activity_inputs, dict):
@@ -53,7 +57,7 @@ class Activity:
             # NOTE: method 1
             # Δg_ij, interaction energy parameter
             dg_ij_src = activity_inputs.get(
-                'interaction-energy-parameter', None) or activity_inputs.get('dg_ij', None) or activity_inputs.get('dg', None)
+                'dg_ij', None) or activity_inputs.get('dg', None)
 
             # NOTE: method 2
             # constants a, b, and c
@@ -68,7 +72,7 @@ class Activity:
 
             # NOTE: α_ij, non-randomness parameter
             alpha_ij_src = activity_inputs.get(
-                'non-randomness-parameter', None) or activity_inputs.get('alpha_ij', None) or activity_inputs.get('alpha', None)
+                'alpha_ij', None) or activity_inputs.get('alpha', None)
             if alpha_ij_src is None:
                 raise ValueError(
                     "No valid source provided for non-randomness parameter (α_ij).")
@@ -203,7 +207,8 @@ class Activity:
     def UNIQUAC(self,
                 components: List[str],
                 z_i_comp: Dict[str, float],
-                temperature: float, **kwargs):
+                temperature: float,
+                **kwargs):
         '''
         UNIQUAC activity model for calculating activity coefficients.
 
@@ -222,20 +227,39 @@ class Activity:
         '''
         try:
             # SECTION: check src
+            # extract activity model inputs
+            activity_inputs = kwargs.get('activity_inputs', None)
+
+            # NOTE: check if activity_inputs is a dictionary
+            if activity_inputs is not None:
+                # check if activity_inputs is a dictionary
+                if not isinstance(activity_inputs, dict):
+                    raise ValueError(
+                        "activity_inputs must be a dictionary.")
+                # check if activity_inputs is empty
+                if len(activity_inputs) == 0:
+                    raise ValueError(
+                        "activity_inputs cannot be empty.")
+
             # NOTE: method 1
             # Δg_ij, interaction energy parameter
-            dU_ij_src = kwargs.get(
-                'interaction-energy-parameter', None) or kwargs.get('dU_ij', None)
+            dU_ij_src = activity_inputs.get(
+                'dU_ij', None) or activity_inputs.get('dU', None)
 
             # NOTE: method 2
             # constants a, b, and c
-            a_ij_src = kwargs.get('a_ij', None)
-            b_ij_src = kwargs.get('b_ij', None)
-            c_ij_src = kwargs.get('c_ij', None)
-            d_ij_src = kwargs.get('d_ij', None)
+            a_ij_src = activity_inputs.get(
+                'a_ij', None) or activity_inputs.get('a', None)
+            b_ij_src = activity_inputs.get(
+                'b_ij', None) or activity_inputs.get('b', None)
+            c_ij_src = activity_inputs.get(
+                'c_ij', None) or activity_inputs.get('c', None)
+            d_ij_src = activity_inputs.get(
+                'd_ij', None) or activity_inputs.get('d', None)
 
             # NOTE: r_i, relative van der Waals volume of component i
-            r_i_src = kwargs.get('r_i', None)
+            r_i_src = activity_inputs.get(
+                'r_i', None) or activity_inputs.get('r', None)
             if r_i_src is None:
                 raise ValueError("No valid source provided for r_i.")
 
@@ -249,7 +273,8 @@ class Activity:
                     "Invalid source for r_i. Must be a list or numpy array.")
 
             # NOTE: q_i, relative van der Waals area of component i
-            q_i_src = kwargs.get('q_i', None)
+            q_i_src = activity_inputs.get(
+                'q_i', None) or activity_inputs.get('q', None)
             if q_i_src is None:
                 raise ValueError("No valid source provided for q_i.")
 

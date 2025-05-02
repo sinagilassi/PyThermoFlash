@@ -115,7 +115,6 @@ d_ij = [
 ]
 # activity model
 activity_inputs = {
-    'activity_model': 'NRTL',
     'alpha': alpha,
     'a_ij': a_ij,
     'b_ij': b_ij,
