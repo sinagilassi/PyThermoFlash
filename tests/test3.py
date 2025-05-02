@@ -129,13 +129,25 @@ inputs = {
     'temperature': [80, 'C'],
 }
 
-# ! bubble point pressure calculation
+# SECTION: bubble point pressure calculation
+# NOTE: raoult's law
+res_bp = vle.bubble_pressure(
+    inputs=inputs, equilibrium_model='raoult',)
+print(res_bp)
+
+# NOTE: modified raoult's law
 res_bp = vle.bubble_pressure(
     inputs=inputs, equilibrium_model='modified-raoult',
     activity_model='NRTL', activity_inputs=activity_inputs)
 print(res_bp)
 
-# ! dew point pressure calculation
+# SECTION: dew point pressure calculation
+# NOTE: raoult's law
+res_dp = vle.dew_pressure(
+    inputs=inputs, equilibrium_model='raoult')
+print(res_dp)
+
+# NOTE: modified raoult's law
 res_dp = vle.dew_pressure(
     inputs=inputs, equilibrium_model='modified-raoult',
     activity_model='NRTL', activity_inputs=activity_inputs)

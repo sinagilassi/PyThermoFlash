@@ -128,7 +128,14 @@ inputs = {
     'pressure': [101.3, 'kPa'],
 }
 
-# ! bubble-point temperature calculation
+# SECTION: bubble-point temperature calculation
+# NOTE: raoult's law
+res_bp = vle.bubble_temperature(
+    inputs=inputs,
+    equilibrium_model='raoult')
+print(res_bp)
+
+# NOTE: modified raoult's law
 res_bp = vle.bubble_temperature(
     inputs=inputs,
     equilibrium_model='modified-raoult',
@@ -136,14 +143,14 @@ res_bp = vle.bubble_temperature(
     activity_inputs=activity_inputs)
 print(res_bp)
 
-# SECTION: dew-temperature point calculation
-# inputs
-inputs = {
-    'mole_fraction': {'benzene': 0.26, 'toluene': 0.74},
-    'pressure': [101.3, 'kPa']
-}
+# SECTION: dew-point temperature calculation
+# NOTE: raoult's law
+res_dp = vle.dew_temperature(
+    inputs=inputs,
+    equilibrium_model='raoult')
+print(res_dp)
 
-# ! dew-point temperature calculation
+# NOTE: modified raoult's law
 res_dp = vle.dew_temperature(
     inputs=inputs,
     equilibrium_model='modified-raoult',

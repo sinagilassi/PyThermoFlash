@@ -441,7 +441,11 @@ class VLE(Equilibria):
                 # set
                 VaPr_comp[component] = {
                     "value": _VaPr,
-                    "unit": "Pa"}
+                    "unit": "Pa",
+                    "equation": VaPr_eq,
+                    "args": _VaPr_args,
+                    "return": VaPr_eq.returns
+                }
 
             # SECTION: set models
             # check equilibrium model
@@ -1047,6 +1051,7 @@ class VLE(Equilibria):
             }
 
             # SECTION: flash checker
+            flash_checker_res_ = None
             if flash_checker:
                 # check
                 flash_checker_res_ = self._flash_checker(
@@ -1075,6 +1080,7 @@ class VLE(Equilibria):
             # NOTE: models
             res["equilibrium_model"] = equilibrium_model
             res["flash_checker"] = flash_checker
+            res["flash_checker_res"] = flash_checker_res_
             res["fugacity_model"] = res_['fugacity_model']
             res["activity_model"] = res_['activity_model']
             res["solver_method"] = solver_method
