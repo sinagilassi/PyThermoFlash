@@ -156,5 +156,6 @@ res_dp = vle.dew_temperature(
     inputs=inputs,
     equilibrium_model='modified-raoult',
     activity_model='NRTL',
-    activity_inputs=activity_inputs)
+    activity_inputs=activity_inputs,
+    solver_method='least-squares')
 print(res_dp)

@@ -1,6 +1,7 @@
 # POOL
 # -----
 # packages/modules
+import time  # Import the time module
 from typing import List, Dict, Optional, Literal
 import numpy as np
 import pycuc
@@ -180,6 +181,7 @@ class VLE(Equilibria):
             - activity_model: activity coefficient model used for the calculation
             - components: list of components used in the calculation
             - message: message displayed during the calculation
+            - computation_time: computation time [s]
 
         Notes
         -----
@@ -190,6 +192,9 @@ class VLE(Equilibria):
         - The function will return the bubble pressure in Pascals.
         '''
         try:
+            # ! Start timing
+            start_time = time.time()
+
             # SECTION: check inputs
             # check inputs
             if not isinstance(inputs, dict):
@@ -302,6 +307,16 @@ class VLE(Equilibria):
             res["fugacity_model"] = res_['fugacity_model']
             res["activity_model"] = res_['activity_model']
 
+            # NOTE: set time
+            # ! Stop timing
+            end_time = time.time()
+            computation_time = end_time - start_time
+            # add to res
+            res['computation_time'] = {
+                "value": computation_time,
+                "unit": "s"
+            }
+
             # returns
             return res
         except Exception as e:
@@ -359,6 +374,7 @@ class VLE(Equilibria):
             - activity_model: activity coefficient model used for the calculation
             - components: list of components used in the calculation
             - message: message displayed during the calculation
+            - computation_time: computation time [s]
 
         Notes
         -----
@@ -369,6 +385,9 @@ class VLE(Equilibria):
         - The function will return the dew pressure in Pascals.
         '''
         try:
+            # ! Start timing
+            start_time = time.time()
+
             # SECTION: check inputs
             # check inputs
             if not isinstance(inputs, dict):
@@ -485,6 +504,16 @@ class VLE(Equilibria):
             res["fugacity_model"] = res_['fugacity_model']
             res["activity_model"] = res_['activity_model']
 
+            # NOTE: set time
+            # ! Stop timing
+            end_time = time.time()
+            computation_time = end_time - start_time
+            # add to res
+            res['computation_time'] = {
+                "value": computation_time,
+                "unit": "s"
+            }
+
             # returns
             return res
         except Exception as e:
@@ -554,6 +583,7 @@ class VLE(Equilibria):
             - components: list of components used in the calculation
             - message: message displayed during the calculation
             - solver_method: solver method used for the calculation
+            - computation_time: computation time [s]
 
         Notes
         -----
@@ -564,6 +594,9 @@ class VLE(Equilibria):
         - Computed Information: Temperature (T) and mole fraction in the vapor phase (yi).
         '''
         try:
+            # ! Start timing
+            start_time = time.time()
+
             # SECTION: check inputs
             # check inputs
             if not isinstance(inputs, dict):
@@ -674,6 +707,16 @@ class VLE(Equilibria):
             res["activity_model"] = res_['activity_model']
             res["solver_method"] = solver_method
 
+            # NOTE: set time
+            # ! Stop timing
+            end_time = time.time()
+            computation_time = end_time - start_time
+            # add to res
+            res['computation_time'] = {
+                "value": computation_time,
+                "unit": "s"
+            }
+
             # returns
             return res
         except Exception as e:
@@ -742,6 +785,7 @@ class VLE(Equilibria):
             - components: list of components used in the calculation
             - message: message displayed during the calculation
             - solver_method: solver method used for the calculation
+            - computation_time: computation time [s]
 
         Notes
         -----
@@ -752,6 +796,9 @@ class VLE(Equilibria):
         - Computed Information: Temperature (T) and mole fraction in the liquid phase (xi).
         '''
         try:
+            # ! Start timing
+            start_time = time.time()
+
             # SECTION: check inputs
             # check inputs
             if not isinstance(inputs, dict):
@@ -860,6 +907,16 @@ class VLE(Equilibria):
             res["activity_model"] = res_['activity_model']
             res["solver_method"] = solver_method
 
+            # NOTE: set time
+            # ! Stop timing
+            end_time = time.time()
+            computation_time = end_time - start_time
+            # add to res
+            res['computation_time'] = {
+                "value": computation_time,
+                "unit": "s"
+            }
+
             # returns
             return res
         except Exception as e:
@@ -934,6 +991,8 @@ class VLE(Equilibria):
             - message: message displayed during the calculation
             - solver_method: solver method used for the calculation
             - flash_checker: flash checker used for the calculation
+            - flash_checker_res: flash checker result
+            - computation_time: computation time [s]
 
         Notes
         -----
@@ -950,6 +1009,9 @@ class VLE(Equilibria):
         - P[dew] > P[flash] results in the vapor phase feed
         '''
         try:
+            # ! Start timing
+            start_time = time.time()
+
             # SECTION: check inputs
             # check inputs
             if not isinstance(inputs, dict):
@@ -1084,6 +1146,16 @@ class VLE(Equilibria):
             res["fugacity_model"] = res_['fugacity_model']
             res["activity_model"] = res_['activity_model']
             res["solver_method"] = solver_method
+
+            # NOTE: set time
+            # ! Stop timing
+            end_time = time.time()
+            computation_time = end_time - start_time
+            # add to res
+            res['computation_time'] = {
+                "value": computation_time,
+                "unit": "s"
+            }
 
             # res
             return res

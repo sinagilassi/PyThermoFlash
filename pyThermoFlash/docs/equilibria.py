@@ -234,6 +234,11 @@ class Equilibria:
                 "feed_mole_fraction": z_i,
                 "vapor_mole_fraction": y_i,
                 "liquid_mole_fraction": z_i,
+                "mole_fraction_sum": {
+                    "zi": float(np.sum(z_i)),
+                    "xi": float(np.sum(z_i)),
+                    "yi": float(np.sum(y_i))
+                },
                 "vapor_pressure": {
                     "value": VaPr_i,
                     "unit": "Pa"
@@ -433,6 +438,11 @@ class Equilibria:
                 "feed_mole_fraction": y_i,
                 "vapor_mole_fraction": y_i,
                 "liquid_mole_fraction": x_i,
+                "mole_fraction_sum": {
+                    "zi": float(np.sum(y_i)),
+                    "xi": float(np.sum(x_i)),
+                    "yi": float(np.sum(y_i))
+                },
                 "vapor_pressure": {
                     "value": VaPr_i,
                     "unit": "Pa"
@@ -655,6 +665,11 @@ class Equilibria:
                 "feed_mole_fraction": z_i,
                 "liquid_mole_fraction": z_i,
                 "vapor_mole_fraction": yi,
+                "mole_fraction_sum": {
+                    "zi": float(np.sum(z_i)),
+                    "xi": float(np.sum(z_i)),
+                    "yi": float(np.sum(yi))
+                },
                 "vapor_pressure": {
                     "value": VaPr,
                     "unit": "Pa"
@@ -760,6 +775,11 @@ class Equilibria:
         kwargs : dict
             additional parameters for the calculation
             - `guess_temperature`: initial guess temperature [K], default is 295 K
+            - `minimum_temperature`: minimum temperature [K], default is 200 K
+            - `maximum_temperature`: maximum temperature [K], default is 1000 K
+            - `max_iter`: maximum number of iterations for the calculation, default is 500
+            - `tolerance`: tolerance for the calculation, default is 1e-6
+            - `epsilon`: small value to avoid numerical issues, default is 1e-8
 
         Returns
         -------
@@ -832,6 +852,18 @@ class Equilibria:
             # pressure [Pa]
             P_value = P['value']
 
+            # guess values
+            # set max_iter
+            max_iter = kwargs.get('max_iter', 500)
+            # set tolerance
+            tolerance = kwargs.get('tolerance', 1e-6)
+            # eps
+            eps = kwargs.get('eps', 1e-8)
+            # guess temperature [K]
+            T_g0 = kwargs.get('guess_temperature', 295)
+            T_min = kwargs.get('minimum_temperature', 200)
+            T_max = kwargs.get('maximum_temperature', 1000)
+
             # params
             _params = {
                 'equilibrium_model': eq_model,
@@ -847,9 +879,10 @@ class Equilibria:
             # NOTE: dew temperature [K]
             T = None
 
+            # SECTION: solution
             # check solver method
             if solver_method == 'fsolve' and eq_model == 'raoult':
-                # ! fsolve
+                # ! fsolve and raoult
                 # bubble temperature calculation
                 _res0 = optimize.fsolve(
                     self.fDT,
@@ -869,7 +902,7 @@ class Equilibria:
                     T = float(T[0])
 
             elif solver_method == 'root' and eq_model == 'raoult':
-                # ! root
+                # ! root and raoult
                 _res0 = optimize.root(
                     self.fDT, T_g0, args=(_params,))
 
@@ -881,20 +914,15 @@ class Equilibria:
                 T = _res0.x[0]
 
             elif solver_method == 'least-squares' and eq_model == 'raoult':
-                # ! least-squares
+                # ! least-squares and raoult
                 # NOTE: Bounds
-                # Small value to avoid numerical issues with log(0), etc.
-                eps = kwargs.get('eps', 1e-8)
-                T_min = kwargs.get('T_min', 200)
-                T_max = kwargs.get('T_max', 1000)
-
                 lower_bounds = T_min
                 upper_bounds = T_max - eps
 
                 bounds = (lower_bounds, upper_bounds)
 
                 _res0 = optimize.least_squares(
-                    self.fDT3,
+                    self.fDT,
                     T_g0,
                     args=(_params,),
                     bounds=bounds,)
@@ -907,18 +935,13 @@ class Equilibria:
                 T = _res0.x[0]
 
             elif solver_method == 'least-squares' and eq_model == 'modified-raoult':
-                # ! least-squares
+                # ! least-squares and modified-raoult
                 # NOTE: initial guess
                 N = self.component_num
                 # Initial guess: beta, x1, x2, ..., x_{N-1}
                 x0 = [T_g0] + [1.0 / N] * (N - 1)
 
                 # NOTE: Bounds
-                # Small value to avoid numerical issues with log(0), etc.
-                eps = kwargs.get('eps', 1e-8)
-                T_min = kwargs.get('T_min', 200)
-                T_max = kwargs.get('T_max', 1000)
-
                 lower_bounds = [T_min] + [eps] * \
                     (N - 1)         # β and each x_i ≥ eps
                 upper_bounds = [T_max - eps] + [1.0] * \
@@ -938,7 +961,87 @@ class Equilibria:
 
                 # extract
                 T = _res0.x[0]
+                # liquid mole fraction
+                x_i = np.zeros_like(z_i)
+                x_i[:-1] = _res0.x[1:]
+                x_i[-1] = 1 - np.sum(x_i[:-1])
+                # to array
+                x_i = np.array(x_i)
+                # comp
+                x_i_comp = self.__mole_fraction_comp(x_i)
 
+                # SECTION: calculate activity coefficient
+                # NOTE: calculate
+                AcCo_i = self.__activity_coefficient(
+                    activity_model,
+                    activity,
+                    x_i_comp,
+                    T,
+                    **kwargs
+                )
+
+            elif solver_method == 'fsolve' and eq_model == 'modified-raoult':
+                # ! fsolve or root and modified-raoult
+                # NOTE: initial guess
+                N = self.component_num
+                # Initial guess: beta, x1, x2, ..., x_{N-1}
+                x0 = [T_g0] + [1.0 / N] * (N - 1)
+
+                # NOTE: bubble temperature calculation
+                _res0 = optimize.fsolve(
+                    self.fDT3,
+                    x0,
+                    args=(_params),
+                    full_output=True)
+
+                # extract
+                x, infodict, ier, msg = _res0
+
+                # check if root found
+                if ier != 1:
+                    raise Exception(f'root not found!, {msg}')
+
+                # extract
+                T = x[0]
+                # liquid mole fraction
+                x_i = np.zeros_like(z_i)
+                x_i[:-1] = x[1:]
+                x_i[-1] = 1 - np.sum(x_i[:-1])
+                # to array
+                x_i = np.array(x_i)
+                # comp
+                x_i_comp = self.__mole_fraction_comp(x_i)
+
+                # SECTION: calculate activity coefficient
+                # NOTE: calculate
+                AcCo_i = self.__activity_coefficient(
+                    activity_model,
+                    activity,
+                    x_i_comp,
+                    T,
+                    **kwargs
+                )
+
+            elif solver_method == 'root' and eq_model == 'modified-raoult':
+                # ! root and modified-raoult
+                # NOTE: initial guess
+                N = self.component_num
+                # Initial guess: beta, x1, x2, ..., x_{N-1}
+                x0 = [T_g0] + [1.0 / N] * (N - 1)
+
+                # NOTE: bubble temperature calculation
+                _res0 = optimize.root(
+                    self.fDT3,
+                    x0,
+                    args=(_params),)
+
+                # check if root found
+                if not _res0.success:
+                    raise Exception(f'root not found!, {_res0.message}')
+
+                # extract
+                T = _res0.x[0]
+                # liquid mole fraction
                 x_i = np.zeros_like(z_i)
                 x_i[:-1] = _res0.x[1:]
                 x_i[-1] = 1 - np.sum(x_i[:-1])
@@ -1006,6 +1109,11 @@ class Equilibria:
                 "feed_mole_fraction": z_i,
                 "liquid_mole_fraction": x_i,
                 "vapor_mole_fraction": z_i,
+                "mole_fraction_sum": {
+                    "xi": float(np.sum(x_i)),
+                    "yi": float(np.sum(z_i)),
+                    "zi": float(np.sum(z_i))
+                },
                 "vapor_pressure": {
                     "value": VaPr_i,
                     "unit": "Pa"
@@ -1025,9 +1133,9 @@ class Equilibria:
         except Exception as e:
             raise Exception(f'dew temperature calculation failed! {e}')
 
-    def fDT0(self, x, params) -> float:
+    def fDT(self, x, params) -> float:
         '''
-        dew temperature function
+        dew temperature function, find `temperature at dew point` using raoult'law assumption.
 
         Parameters
         ----------
@@ -1038,6 +1146,20 @@ class Equilibria:
             - mole_fraction : liquid mole fraction (xi)
             - pressure : pressure [Pa]
             - vapor_pressure : vapor pressure equation [Pa]
+
+        Returns
+        -------
+        loss : float
+            Loss function value, which is the absolute difference between the calculated dew pressure and the given pressure (P).
+
+        Notes
+        -----
+        The dew temperature function calculates the dew pressure using the given temperature and compares it with the provided pressure (P). It returns the absolute difference as the loss function value.
+
+        - Known Information: Pressure (P) and mole fraction of the components in the vapor phase (yi).
+        then zi = yi.
+        - Computed Information: Temperature (T)
+        - The mole fraction in the liquid phase (xi) is calculated later.
         '''
         # NOTE: temperature (loop)
         T = x[0]
@@ -1084,9 +1206,9 @@ class Equilibria:
 
         return loss
 
-    def fDT(self, x, params) -> float:
+    def fDT1(self, x, params) -> float:
         '''
-        dew temperature function
+        dew temperature function using modified raoult'law assumption, but does not return the liquid mole fraction.
 
         Parameters
         ----------
@@ -1191,7 +1313,7 @@ class Equilibria:
 
     def fDT2(self, x, params) -> float:
         '''
-        dew temperature function
+        dew temperature function using modified raoult'law assumption, the loss function is the absolute difference between the calculated dew pressure and the given pressure (P).
 
         Parameters
         ----------
@@ -1202,6 +1324,12 @@ class Equilibria:
             - mole_fraction : liquid mole fraction (xi)
             - pressure : pressure [Pa]
             - vapor_pressure : vapor pressure equation [Pa]
+
+        Returns
+        -------
+        loss : float
+            Loss function value, which is the absolute difference between the calculated dew pressure and the given pressure (P).
+            - Single scalar value.
         '''
         # NOTE: temperature (loop)
         T = x[0]
@@ -1280,7 +1408,7 @@ class Equilibria:
 
     def fDT3(self, x, params) -> float:
         '''
-        dew temperature function
+        dew temperature function using modified raoult'law assumption, a system of equations is solved to find the dew temperature and liquid mole fraction.
 
         Parameters
         ----------
@@ -1291,6 +1419,12 @@ class Equilibria:
             - mole_fraction : liquid mole fraction (xi)
             - pressure : pressure [Pa]
             - vapor_pressure : vapor pressure equation [Pa]
+
+        Returns
+        -------
+        residuals : array-like
+            Residuals of the system of equations.
+            - Vector of N residuals, each component balance enforced
         '''
         # NOTE: temperature (loop)
         T = x[0]
