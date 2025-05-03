@@ -13,18 +13,12 @@ PyThermoFlash is a comprehensive computational tool designed for engineers, rese
   - VT-flash (volume-temperature)
 
 - **Thermodynamic Models**:
-  - Equation of State (EoS) models: Peng-Robinson, Soave-Redlich-Kwong, etc.
   - Activity coefficient models: NRTL, UNIQUAC, Wilson
+  - Equation of State (EoS) models: Peng-Robinson, Soave-Redlich-Kwong, etc (soon).
 
 - **Property Calculations**:
   - Vapor-liquid equilibria
-  - Phase envelopes
   - Fugacities and activity coefficients
-
-- **Utilities**:
-  - Binary interaction parameter estimation
-  - Visualization tools for phase diagrams
-  - Export capabilities for simulation results
 
 ## 🔑 Key Points
 
@@ -37,20 +31,14 @@ PyThermoFlash is a comprehensive computational tool designed for engineers, rese
 ## 📥 Installation
 
 ```bash
-pip install pyThermoFlash
+pip install PyThermoFlash
 ```
 
 ## 🚀 Usage Example
 
 ```python
 import pyThermoFlash as ptf
-
 ```
-
-## 📚 Documentation
-
-For detailed documentation, visit [pythermoflash.readthedocs.io](https://pythermoflash.readthedocs.io)
-
 
 ## 🤝 Contributing
 

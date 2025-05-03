@@ -1,4 +1,4 @@
-site_name: PyThermoModels
+site_name: PyThermoFlash
 theme:
   name: material
   features:
