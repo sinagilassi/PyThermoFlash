@@ -693,7 +693,7 @@ class VLE(Equilibria):
                         = 'NRTL',
                         solver_method: Literal[
                             'root', 'least-squares', 'fsolve'
-                        ] = 'root',
+                        ] = 'least-squares',
                         message: Optional[str] = None,
                         **kwargs):
         '''

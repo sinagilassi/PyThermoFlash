@@ -147,7 +147,8 @@ print(res_bp)
 # NOTE: raoult's law
 res_dp = vle.dew_temperature(
     inputs=inputs,
-    equilibrium_model='raoult')
+    equilibrium_model='raoult',
+    solver_method='fsolve')
 print(res_dp)
 
 # NOTE: modified raoult's law

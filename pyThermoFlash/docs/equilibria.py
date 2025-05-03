@@ -56,6 +56,62 @@ class Equilibria:
         return {str(self.components[i]): z_i[i]
                 for i in range(self.component_num)}
 
+    def __activity_coefficient(self,
+                               activity_model: Literal['NRTL', 'UNIQUAC'],
+                               activity: Activity,
+                               x_i: np.ndarray,
+                               T: float,
+                               **kwargs) -> np.ndarray:
+        '''
+        Calculate activity coefficient using NRTL or UNIQUAC model.
+
+        Parameters
+        ----------
+        activity_model : str
+            Activity model to be used ('NRTL' or 'UNIQUAC').
+        activity : Activity
+            Activity object for calculating activity coefficients.
+        x_i : array-like
+            Liquid mole fraction of each component in the mixture.
+        T : float
+            Temperature [K].
+        kwargs : dict
+            Additional parameters for the calculation.
+
+        Returns
+        -------
+        AcCo_i : array-like
+            Activity coefficient of each component in the mixture.
+        '''
+        try:
+            # NOTE: check model
+            if activity_model == 'NRTL':
+                # calculate activity
+                res_ = activity.NRTL(
+                    self.components,
+                    x_i,
+                    T,
+                    **kwargs)
+                # extract
+                AcCo_i = res_['value']
+            elif activity_model == 'UNIQUAC':
+                # calculate activity
+                res_ = activity.UNIQUAC(
+                    self.components,
+                    x_i,
+                    T,
+                    **kwargs)
+                # extract
+                AcCo_i = res_['value']
+            else:
+                # equals unity for ideal solution
+                AcCo_i = np.ones(self.component_num)
+
+            # res
+            return AcCo_i
+        except Exception as e:
+            raise Exception(f'activity coefficient calculation failed! {e}')
+
     def _BP(self, params, **kwargs):
         '''
         The bubble-point pressure (BP) calculation determines the pressure at which the first bubble of vapor forms when a liquid mixture is heated at a constant temperature. It is used to find the pressure for a given temperature at which the liquid will begin to vaporize. This calculation is based on `Raoult's law`, which states that the vapor pressure of each component in the mixture is proportional to its mole fraction in the liquid phase.
@@ -134,22 +190,14 @@ class Equilibria:
             # init NRTL model
             activity = Activity()
 
-            # NOTE: check model
-            if activity_model == 'NRTL':
-                # calculate activity
-                res_ = activity.NRTL(
-                    self.components, z_i_comp, T_value, **kwargs)
-                # extract
-                AcCo_i = res_['value']
-            elif activity_model == 'UNIQUAC':
-                # calculate activity
-                res_ = activity.UNIQUAC(
-                    self.components, z_i_comp, T_value, **kwargs)
-                # extract
-                AcCo_i = res_['value']
-            else:
-                # equals unity for ideal solution
-                AcCo_i = np.ones(self.component_num)
+            # NOTE: calculate
+            AcCo_i = self.__activity_coefficient(
+                activity_model,
+                activity,
+                z_i_comp,
+                T_value,
+                **kwargs
+            )
 
             # SECTION: vapor pressure calculation
             # vapor pressure [Pa]
@@ -342,22 +390,15 @@ class Equilibria:
 
                 # SECTION: iteration
                 for m in range(max_iter):
-                    # NOTE: check activity model
-                    if activity_model == 'NRTL':
-                        # calculate activity
-                        res_ = activity.NRTL(
-                            self.components, x_i_comp, T_value, **kwargs)
-                        # extract
-                        AcCo_i = res_['value']
-                    elif activity_model == 'UNIQUAC':
-                        # calculate activity
-                        res_ = activity.UNIQUAC(
-                            self.components, x_i_comp, T_value, **kwargs)
-                        # extract
-                        AcCo_i = res_['value']
-                    else:
-                        # equals unity for ideal solution
-                        AcCo_i = np.ones(self.component_num)
+
+                    # NOTE: calculate
+                    AcCo_i = self.__activity_coefficient(
+                        activity_model,
+                        activity,
+                        x_i_comp,
+                        T_value,
+                        **kwargs
+                    )
 
                     # NOTE: dew pressure [Pa]
                     DePr_new = 1/np.dot(y_i, 1/(VaPr_i*AcCo_i))
@@ -584,22 +625,14 @@ class Equilibria:
                 VaPr[i] = VaPr_
 
             # SECTION: calculate activity coefficient
-            # NOTE: check model
-            if activity_model == 'NRTL':
-                # calculate activity
-                res_ = activity.NRTL(
-                    self.components, z_i_comp, T, **kwargs)
-                # extract
-                AcCo_i = res_['value']
-            elif activity_model == 'UNIQUAC':
-                # calculate activity
-                res_ = activity.UNIQUAC(
-                    self.components, z_i_comp, T, **kwargs)
-                # extract
-                AcCo_i = res_['value']
-            else:
-                # equals unity for ideal solution
-                AcCo_i = np.ones(self.component_num)
+            # NOTE: calculate
+            AcCo_i = self.__activity_coefficient(
+                activity_model,
+                activity,
+                z_i_comp,
+                T,
+                **kwargs
+            )
 
             # vapor mole fraction
             yi = np.zeros(self.component_num)
@@ -673,22 +706,15 @@ class Equilibria:
         # activity inputs
         activity_inputs = params['activity_inputs']
 
-        # NOTE: check model
-        if activity_model == 'NRTL':
-            # calculate activity
-            res_ = activity.NRTL(
-                self.components, z_i_comp, T, activity_inputs=activity_inputs)
-            # extract
-            AcCo_i = res_['value']
-        elif activity_model == 'UNIQUAC':
-            # calculate activity
-            res_ = activity.UNIQUAC(
-                self.components, z_i_comp, T, activity_inputs=activity_inputs)
-            # extract
-            AcCo_i = res_['value']
-        else:
-            # equals unity for ideal solution
-            AcCo_i = np.ones(self.component_num)
+        # SECTION: activity coefficient
+        # NOTE: calculate
+        AcCo_i = self.__activity_coefficient(
+            activity_model,
+            activity,
+            z_i_comp,
+            T,
+            activity_inputs=activity_inputs
+        )
 
         # NOTE: calculate vapor-pressure
         # vapor pressure [Pa]
@@ -799,6 +825,9 @@ class Equilibria:
             # activity inputs
             activity_inputs = kwargs.get('activity_inputs', {})
 
+            # activity coefficient [dimensionless]
+            AcCo_i = np.ones(self.component_num)
+
             # SECTION: optimization
             # pressure [Pa]
             P_value = P['value']
@@ -819,9 +848,9 @@ class Equilibria:
             T = None
 
             # check solver method
-            if solver_method == 'fsolve':
+            if solver_method == 'fsolve' and eq_model == 'raoult':
                 # ! fsolve
-                # bubble pressure [Pa]
+                # bubble temperature calculation
                 _res0 = optimize.fsolve(
                     self.fDT,
                     T_g0,
@@ -839,7 +868,7 @@ class Equilibria:
                 if len(T) == 1:
                     T = float(T[0])
 
-            elif solver_method == 'root':
+            elif solver_method == 'root' and eq_model == 'raoult':
                 # ! root
                 _res0 = optimize.root(
                     self.fDT, T_g0, args=(_params,))
@@ -851,10 +880,24 @@ class Equilibria:
                 # extract
                 T = _res0.x[0]
 
-            elif solver_method == 'least-squares':
+            elif solver_method == 'least-squares' and eq_model == 'raoult':
                 # ! least-squares
+                # NOTE: Bounds
+                # Small value to avoid numerical issues with log(0), etc.
+                eps = kwargs.get('eps', 1e-8)
+                T_min = kwargs.get('T_min', 200)
+                T_max = kwargs.get('T_max', 1000)
+
+                lower_bounds = T_min
+                upper_bounds = T_max - eps
+
+                bounds = (lower_bounds, upper_bounds)
+
                 _res0 = optimize.least_squares(
-                    self.fDT, T_g0, args=(_params,))
+                    self.fDT3,
+                    T_g0,
+                    args=(_params,),
+                    bounds=bounds,)
 
                 # check
                 if not _res0.success:
@@ -862,6 +905,57 @@ class Equilibria:
 
                 # extract
                 T = _res0.x[0]
+
+            elif solver_method == 'least-squares' and eq_model == 'modified-raoult':
+                # ! least-squares
+                # NOTE: initial guess
+                N = self.component_num
+                # Initial guess: beta, x1, x2, ..., x_{N-1}
+                x0 = [T_g0] + [1.0 / N] * (N - 1)
+
+                # NOTE: Bounds
+                # Small value to avoid numerical issues with log(0), etc.
+                eps = kwargs.get('eps', 1e-8)
+                T_min = kwargs.get('T_min', 200)
+                T_max = kwargs.get('T_max', 1000)
+
+                lower_bounds = [T_min] + [eps] * \
+                    (N - 1)         # β and each x_i ≥ eps
+                upper_bounds = [T_max - eps] + [1.0] * \
+                    (N - 1)   # β ≤ 1−eps, x_i ≤ 1
+
+                bounds = (lower_bounds, upper_bounds)
+
+                _res0 = optimize.least_squares(
+                    self.fDT3,
+                    x0,
+                    args=(_params,),
+                    bounds=bounds,)
+
+                # check
+                if not _res0.success:
+                    raise Exception(f'root not found!, {_res0.message}')
+
+                # extract
+                T = _res0.x[0]
+
+                x_i = np.zeros_like(z_i)
+                x_i[:-1] = _res0.x[1:]
+                x_i[-1] = 1 - np.sum(x_i[:-1])
+                # to array
+                x_i = np.array(x_i)
+                # comp
+                x_i_comp = self.__mole_fraction_comp(x_i)
+
+                # SECTION: calculate activity coefficient
+                # NOTE: calculate
+                AcCo_i = self.__activity_coefficient(
+                    activity_model,
+                    activity,
+                    x_i_comp,
+                    T,
+                    **kwargs
+                )
 
             else:
                 raise Exception('solver method not found!')
@@ -889,31 +983,15 @@ class Equilibria:
                 # save
                 VaPr_i[i] = VaPr_
 
-            # NOTE: calculate activity coefficient
-            # NOTE: check model
-            if activity_model == 'NRTL':
-                # calculate activity
-                res_ = activity.NRTL(
-                    self.components, z_i_comp, T, **kwargs)
-                # extract
-                AcCo_i = res_['value']
-            elif activity_model == 'UNIQUAC':
-                # calculate activity
-                res_ = activity.UNIQUAC(
-                    self.components, z_i_comp, T, **kwargs)
-                # extract
-                AcCo_i = res_['value']
-            else:
-                # equals unity for ideal solution
-                AcCo_i = np.ones(self.component_num)
-
-            # NOTE: vapor mole fraction
-            xi = np.zeros(self.component_num)
-            for i in range(self.component_num):
-                xi[i] = (z_i[i]*P_value)/(VaPr_i[i]*AcCo_i[i])
+            # NOTE: liquid mole fraction
+            if eq_model == 'raoult':
+                x_i = np.zeros(self.component_num)
+                # looping over components
+                for i in range(self.component_num):
+                    x_i[i] = (z_i[i]*P_value)/(VaPr_i[i]*AcCo_i[i])
 
             # NOTE: k-ratio
-            K_i = np.multiply(xi, 1/z_i)
+            K_i = np.multiply(x_i, 1/z_i)
 
             # NOTE: results
             res = {
@@ -926,7 +1004,7 @@ class Equilibria:
                     "unit": "Pa"
                 },
                 "feed_mole_fraction": z_i,
-                "liquid_mole_fraction": xi,
+                "liquid_mole_fraction": x_i,
                 "vapor_mole_fraction": z_i,
                 "vapor_pressure": {
                     "value": VaPr_i,
@@ -946,6 +1024,65 @@ class Equilibria:
             return res
         except Exception as e:
             raise Exception(f'dew temperature calculation failed! {e}')
+
+    def fDT0(self, x, params) -> float:
+        '''
+        dew temperature function
+
+        Parameters
+        ----------
+        x : array-like
+            Guess temperature [K]
+        params : dict
+            Dictionary containing the following:
+            - mole_fraction : liquid mole fraction (xi)
+            - pressure : pressure [Pa]
+            - vapor_pressure : vapor pressure equation [Pa]
+        '''
+        # NOTE: temperature (loop)
+        T = x[0]
+
+        # NOTE: params
+        # mole fraction [array]
+        y_i = params['mole_fraction']
+        # pressure [Pa]
+        P = params['pressure']
+        # vapor pressure calculation
+        VaPr_comp = params['vapor_pressure']
+
+        # NOTE: calculate vapor-pressure
+        # vapor pressure [Pa]
+        VaPr_i = np.zeros(self.component_num)
+
+        # looping over components
+        for i, component in enumerate(self.components):
+            # vapor pressure [?]
+            eq_ = VaPr_comp[component]['value']
+            args_ = VaPr_comp[component]['args']
+            # update args
+            args_['T'] = T
+            # cal
+            res_ = eq_.cal(**args_)
+            # extract
+            res_value_ = res_['value']
+            res_unit_ = res_['unit']
+            # convert to Pa
+            unit_block_ = f"{res_unit_} => Pa"
+            VaPr_ = pycuc.to(res_value_, unit_block_)
+
+            # save
+            VaPr_i[i] = VaPr_
+
+        # equals unity for ideal solution
+        AcCo_i = np.ones(self.component_num)
+
+        # NOTE: dew pressure [Pa]
+        DePr = 1/np.dot(y_i, 1/(VaPr_i*AcCo_i))
+
+        # SECTION: loss function
+        loss = abs((P/DePr) - 1)
+
+        return loss
 
     def fDT(self, x, params) -> float:
         '''
@@ -1023,28 +1160,13 @@ class Equilibria:
 
             for _ in range(max_iter):
                 # NOTE: calculate activity coefficient
-                # NOTE: check model
-                if activity_model == 'NRTL':
-                    # calculate activity
-                    res_ = activity.NRTL(
-                        self.components,
-                        x_i_comp,
-                        T,
-                        activity_inputs=activity_inputs)
-                    # extract
-                    AcCo_i = res_['value']
-                elif activity_model == 'UNIQUAC':
-                    # calculate activity
-                    res_ = activity.UNIQUAC(
-                        self.components,
-                        x_i_comp,
-                        T,
-                        activity_inputs=activity_inputs)
-                    # extract
-                    AcCo_i = res_['value']
-                else:
-                    # equals unity for ideal solution
-                    AcCo_i = np.ones(self.component_num)
+                AcCo_i = self.__activity_coefficient(
+                    activity_model,
+                    activity,
+                    x_i_comp,
+                    T,
+                    activity_inputs=activity_inputs
+                )
 
                 # NOTE: liquid mole fraction
                 x_i_new = (y_i*DePr)/(VaPr_i*AcCo_i)
@@ -1066,6 +1188,181 @@ class Equilibria:
         loss = abs((P/DePr) - 1)
 
         return loss
+
+    def fDT2(self, x, params) -> float:
+        '''
+        dew temperature function
+
+        Parameters
+        ----------
+        x : array-like
+            Guess temperature [K]
+        params : dict
+            Dictionary containing the following:
+            - mole_fraction : liquid mole fraction (xi)
+            - pressure : pressure [Pa]
+            - vapor_pressure : vapor pressure equation [Pa]
+        '''
+        # NOTE: temperature (loop)
+        T = x[0]
+
+        x_i = np.zeros(self.component_num)
+        x_i[:-1] = x[1:]
+        x_i[-1] = 1 - np.sum(x_i[:-1])
+
+        if np.any(x_i <= 1e-8) or T < 200 or T > 1000:
+            return [1e6]
+
+        # NOTE: params
+        # equilibrium model
+        eq_model = params['equilibrium_model']
+        # mole fraction [array]
+        y_i = params['mole_fraction']
+        y_i_comp = params['mole_fraction_comp']
+        # pressure [Pa]
+        P = params['pressure']
+        # vapor pressure calculation
+        VaPr_comp = params['vapor_pressure']
+        # activity model
+        activity_model = params['activity_model']
+        # activity
+        activity: Activity = params['activity']
+        # activity inputs
+        activity_inputs = params['activity_inputs']
+        # max iteration
+        max_iter = params.get('max_iter', 500)
+        # tolerance
+        tolerance = params.get('tolerance', 1e-6)
+
+        # NOTE: calculate vapor-pressure
+        # vapor pressure [Pa]
+        VaPr_i = np.zeros(self.component_num)
+
+        # looping over components
+        for i, component in enumerate(self.components):
+            # vapor pressure [?]
+            eq_ = VaPr_comp[component]['value']
+            args_ = VaPr_comp[component]['args']
+            # update args
+            args_['T'] = T
+            # cal
+            res_ = eq_.cal(**args_)
+            # extract
+            res_value_ = res_['value']
+            res_unit_ = res_['unit']
+            # convert to Pa
+            unit_block_ = f"{res_unit_} => Pa"
+            VaPr_ = pycuc.to(res_value_, unit_block_)
+
+            # save
+            VaPr_i[i] = VaPr_
+
+        # SECTION: calculate activity coefficient
+        # set liquid mole fraction
+        x_i_comp = self.__mole_fraction_comp(x_i)
+
+        # calculate activity coefficient
+        AcCo_i = self.__activity_coefficient(
+            activity_model,
+            activity,
+            x_i_comp,
+            T,
+            activity_inputs=activity_inputs
+        )
+
+        # NOTE: dew pressure [Pa]
+        DePr = 1/np.dot(y_i, 1/(VaPr_i*AcCo_i))
+
+        # SECTION: loss function
+        loss = abs((P/DePr) - 1)
+
+        return [loss]
+
+    def fDT3(self, x, params) -> float:
+        '''
+        dew temperature function
+
+        Parameters
+        ----------
+        x : array-like
+            Guess temperature [K]
+        params : dict
+            Dictionary containing the following:
+            - mole_fraction : liquid mole fraction (xi)
+            - pressure : pressure [Pa]
+            - vapor_pressure : vapor pressure equation [Pa]
+        '''
+        # NOTE: temperature (loop)
+        T = x[0]
+
+        x_i = np.zeros(self.component_num)
+        x_i[:-1] = x[1:]
+        x_i[-1] = 1 - np.sum(x_i[:-1])
+
+        if np.any(x_i <= 1e-8) or T < 200 or T > 1000:
+            return [1e6]
+
+        # NOTE: params
+        # equilibrium model
+        eq_model = params['equilibrium_model']
+        # mole fraction [array]
+        y_i = params['mole_fraction']
+        y_i_comp = params['mole_fraction_comp']
+        # pressure [Pa]
+        P = params['pressure']
+        # vapor pressure calculation
+        VaPr_comp = params['vapor_pressure']
+        # activity model
+        activity_model = params['activity_model']
+        # activity
+        activity: Activity = params['activity']
+        # activity inputs
+        activity_inputs = params['activity_inputs']
+        # max iteration
+        max_iter = params.get('max_iter', 500)
+        # tolerance
+        tolerance = params.get('tolerance', 1e-6)
+
+        # NOTE: calculate vapor-pressure
+        # vapor pressure [Pa]
+        VaPr_i = np.zeros(self.component_num)
+
+        # looping over components
+        for i, component in enumerate(self.components):
+            # vapor pressure [?]
+            eq_ = VaPr_comp[component]['value']
+            args_ = VaPr_comp[component]['args']
+            # update args
+            args_['T'] = T
+            # cal
+            res_ = eq_.cal(**args_)
+            # extract
+            res_value_ = res_['value']
+            res_unit_ = res_['unit']
+            # convert to Pa
+            unit_block_ = f"{res_unit_} => Pa"
+            VaPr_ = pycuc.to(res_value_, unit_block_)
+
+            # save
+            VaPr_i[i] = VaPr_
+
+        # SECTION: calculate activity coefficient
+        # set liquid mole fraction
+        x_i_comp = self.__mole_fraction_comp(x_i)
+
+        # calculate activity coefficient
+        AcCo_i = self.__activity_coefficient(
+            activity_model,
+            activity,
+            x_i_comp,
+            T,
+            activity_inputs=activity_inputs
+        )
+
+        # SECTION: loss function
+        residuals = (y_i * P) / (AcCo_i * VaPr_i) - x_i
+
+        return residuals
 
     def __cal_bubble_pressure(self, xi: np.ndarray, VaPr: np.ndarray) -> float:
         '''
@@ -1771,55 +2068,3 @@ class Equilibria:
             # {'type': 'eq', 'fun': liquid_sum},
             {'type': 'eq', 'fun': vapor_sum},
         ]
-
-    def __activity_coefficient(self,
-                               activity_model: Literal['NRTL', 'UNIQUAC'],
-                               activity: Activity,
-                               x_i: np.ndarray,
-                               T: float,
-                               **kwargs) -> np.ndarray:
-        '''
-        Calculate activity coefficient using NRTL or UNIQUAC model.
-
-        Parameters
-        ----------
-        activity_model : str
-            Activity model to be used ('NRTL' or 'UNIQUAC').
-        activity : Activity
-            Activity object for calculating activity coefficients.
-        x_i : array-like
-            Liquid mole fraction of each component in the mixture.
-        T : float
-            Temperature [K].
-        kwargs : dict
-            Additional parameters for the calculation.
-
-        Returns
-        -------
-        AcCo_i : array-like
-            Activity coefficient of each component in the mixture.
-        '''
-        # NOTE: check model
-        if activity_model == 'NRTL':
-            # calculate activity
-            res_ = activity.NRTL(
-                self.components,
-                x_i,
-                T,
-                **kwargs)
-            # extract
-            AcCo_i = res_['value']
-        elif activity_model == 'UNIQUAC':
-            # calculate activity
-            res_ = activity.UNIQUAC(
-                self.components,
-                x_i,
-                T,
-                **kwargs)
-            # extract
-            AcCo_i = res_['value']
-        else:
-            # equals unity for ideal solution
-            AcCo_i = np.ones(self.component_num)
-
-        return AcCo_i
