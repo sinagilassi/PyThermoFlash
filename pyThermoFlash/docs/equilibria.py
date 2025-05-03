@@ -1626,6 +1626,9 @@ class Equilibria:
             - T: temperature [K]
         kwargs : dict
             additional parameters for the calculation
+            - `activity_inputs`: additional inputs for the activity model, default is {}
+            - `eps`: small value to avoid numerical issues, default is 1e-8
+            - `guess_vapor_fraction`: vapor fraction (VF) [dimensionless], default is 0.5
 
         Returns
         -------
@@ -1721,6 +1724,11 @@ class Equilibria:
             activity = Activity()
 
             # SECTION: optimization
+            # NOTE: guess values
+            VF0_g = kwargs.get('guess_vapor_fraction', 0.5)
+            # eps
+            eps = kwargs.get('eps', 1e-8)
+
             # NOTE: mole fraction dict
             z_i_comp = self.__mole_fraction_comp(z_i)
 
@@ -1737,18 +1745,18 @@ class Equilibria:
                 'activity_inputs': activity_inputs,
             }
 
+            # NOTE: solver message
+            solver_message = None
+
             # NOTE: check solver method
             if solver_method == 'least_squares':
                 # ! least-squares
                 # NOTE: initial guess
                 N = self.component_num
                 # Initial guess: beta, x1, x2, ..., x_{N-1}
-                x0 = [0.5] + [1.0 / N] * (N - 1)
+                x0 = [VF0_g] + [1.0 / N] * (N - 1)
 
                 # NOTE: Bounds
-                # Small value to avoid numerical issues with log(0), etc.
-                eps = kwargs.get('eps', 1e-8)
-
                 lower_bounds = [eps] + [eps] * \
                     (N - 1)         # β and each x_i ≥ eps
                 upper_bounds = [1.0 - eps] + [1.0] * \
@@ -1756,9 +1764,17 @@ class Equilibria:
 
                 bounds = (lower_bounds, upper_bounds)
 
+                # NOTE: set function
+                if eq_model == 'raoult':
+                    fn = self.fIFL
+                elif eq_model == 'modified-raoult':
+                    fn = self.fIFL1
+                else:
+                    raise Exception('equilibrium model not found!')
+
                 # V/F
                 _res = optimize.least_squares(
-                    self.fIFL,
+                    fn,
                     x0,
                     args=(_params,),
                     bounds=bounds)
@@ -1767,23 +1783,37 @@ class Equilibria:
                 if _res.success is False:
                     raise Exception(f'root not found!, {_res.message}')
 
+                # solver message
+                solver_message = _res.message
+
                 # -> result analysis
                 V_F_ratio = _res.x[0]
-                x_liq = np.zeros_like(z_i)
-                x_liq[:-1] = _res.x[1:]
-                x_liq[-1] = 1 - np.sum(x_liq[:-1])
+                x_i = np.zeros_like(z_i)
+                x_i[:-1] = _res.x[1:]
+                x_i[-1] = 1 - np.sum(x_i[:-1])
+                # to array
+                x_i = np.array(x_i)
+                # comp
+                x_i_comp = self.__mole_fraction_comp(x_i)
+
+                # SECTION: calculate activity coefficient
+                # NOTE: calculate
+                AcCo_i = self.__activity_coefficient(
+                    activity_model,
+                    activity,
+                    x_i_comp,
+                    T_value,
+                    **kwargs
+                )
 
             elif solver_method == 'minimize':
                 # ! minimize
                 # NOTE: initial guess
                 N = self.component_num
                 # Initial guess: beta, x1, x2, ..., x_{N-1}
-                x0 = [0.5] + [1.0 / N] * (N - 1)
+                x0 = [VF0_g] + [1.0 / N] * (N - 1)
 
                 # NOTE: Bounds
-                # Small value to avoid numerical issues with log(0), etc.
-                eps = kwargs.get('eps', 1e-8)
-
                 # individual bounds (min, max)
                 bounds = [(eps, 1.0 - eps)] + [(eps, 1.0)
                                                for _ in range(N - 1)]
@@ -1820,7 +1850,7 @@ class Equilibria:
                 raise Exception('solver method not found!')
 
             # SECTION: liquid/vapor mole fraction
-            xy_ = self.xy_flash(V_F_ratio, z_i, K_i)
+            xy_ = self.xy_flash(V_F_ratio, z_i, K_i, AcCo_i)
             # set
             xi = xy_['liquid']
             yi = xy_['vapor']
@@ -1854,6 +1884,11 @@ class Equilibria:
                 "feed_mole_fraction": z_i,
                 "liquid_mole_fraction": xi,
                 "vapor_mole_fraction": yi,
+                "mole_fraction_sum": {
+                    "xi": float(np.sum(xi)),
+                    "yi": float(np.sum(yi)),
+                    "zi": float(np.sum(z_i))
+                },
                 "vapor_pressure": {
                     "value": VaPr_i,
                     "unit": "Pa"
@@ -1873,7 +1908,8 @@ class Equilibria:
                 "activity_coefficient": {
                     "value": AcCo_i,
                     "unit": "dimensionless"
-                }
+                },
+                "solver_message": solver_message,
             }
 
             # res
@@ -1883,7 +1919,74 @@ class Equilibria:
 
     def fIFL(self, x, params):
         '''
-        Flash isothermal function, according to Raoult's law.
+        Flash isothermal function, according to `Raoult's law`.
+
+        Parameters
+        ----------
+        x : array-like
+            VF : vapor-feed ratio [dimensionless]
+            x_i : liquid mole fraction [dimensionless]
+        params : tuple
+            Tuple containing the following:
+            - zi : feed mole fraction [dimensionless]
+            - Ki : K ratio [dimensionless]
+        '''
+        # NOTE: extract variables
+        # vapor fraction
+        VF = x[0]
+        # liquid mole fraction
+        x_i = np.zeros(self.component_num)
+        x_i[:-1] = x[1:]
+        # last x_i
+        x_i[-1] = 1 - np.sum(x_i[:-1])
+
+        # NOTE: params
+        # feed mole fraction
+        z_i = params['mole_fraction']
+        # K ratio (P*/P) [dimensionless]
+        K_i = params['K_ratio']
+
+        # NOTE: activity coefficient
+        # equals unity for ideal solution
+        AcCo_i = np.ones(self.component_num)
+
+        # NOTE: vapor mole fraction
+        K_i = AcCo_i * K_i
+        y_i = K_i * x_i
+
+        # SECTION: check optimization region
+        # Avoid division by zero or invalid regions
+        if VF <= 0 or VF >= 1:
+            return 1e6  # Return a large value to indicate invalid region
+
+        # mole fraction
+        # NOTE: check if x_i is valid
+        if np.any(x_i <= 1e-8) or np.any(x_i >= 1 - 1e-8):
+            return 1e6
+
+        # NOTE: sum x_i = 1
+        if np.abs(np.sum(x_i) - 1) > 1e-8:
+            return 1e6
+
+        # NOTE: function
+        eqs = []
+
+        # looping over components
+        for i in range(self.component_num - 1):
+            eq = z_i[i] - ((1 - VF) * x_i[i] + VF * y_i[i])
+            eqs.append(eq)
+
+        # Closure relations
+        # eqs.append(np.sum(x_i) - 1)   # sum x_i = 1
+        # eqs.append(np.sum(y_i) - 1)   # sum y_i = 1
+        # x-y < eps
+        eqs.append(np.sum(x_i) - np.sum(y_i) - 1e-8)  # sum x_i = sum y_i
+
+        return eqs
+
+    def fIFL1(self, x, params):
+        '''
+        Flash isothermal function, according to modified Raoult's law.
 
         Parameters
         ----------
@@ -1927,34 +2030,33 @@ class Equilibria:
         AcCo_i = np.ones(self.component_num)
 
         # SECTION: equilibrium model
-        if eq_model == 'modified-raoult':
-            # ! Modified Raoult's law
-            # set x loop
-            x_i_comp = self.__mole_fraction_comp(x_i)
+        # ! Modified Raoult's law
+        # set x loop
+        x_i_comp = self.__mole_fraction_comp(x_i)
 
-            # NOTE: calculate activity coefficient
-            # NOTE: check model
-            if activity_model == 'NRTL':
-                # calculate activity
-                res_ = activity.NRTL(
-                    self.components,
-                    x_i_comp,
-                    T,
-                    activity_inputs=activity_inputs)
-                # extract
-                AcCo_i = res_['value']
-            elif activity_model == 'UNIQUAC':
-                # calculate activity
-                res_ = activity.UNIQUAC(
-                    self.components,
-                    x_i_comp,
-                    T,
-                    activity_inputs=activity_inputs)
-                # extract
-                AcCo_i = res_['value']
-            else:
-                # equals unity for ideal solution
-                AcCo_i = np.ones(self.component_num)
+        # NOTE: calculate activity coefficient
+        # NOTE: check model
+        if activity_model == 'NRTL':
+            # calculate activity
+            res_ = activity.NRTL(
+                self.components,
+                x_i_comp,
+                T,
+                activity_inputs=activity_inputs)
+            # extract
+            AcCo_i = res_['value']
+        elif activity_model == 'UNIQUAC':
+            # calculate activity
+            res_ = activity.UNIQUAC(
+                self.components,
+                x_i_comp,
+                T,
+                activity_inputs=activity_inputs)
+            # extract
+            AcCo_i = res_['value']
+        else:
+            # equals unity for ideal solution
+            AcCo_i = np.ones(self.component_num)
 
         # NOTE: vapor mole fraction
         K_i = AcCo_i * K_i
@@ -1965,6 +2067,15 @@ class Equilibria:
         if VF <= 0 or VF >= 1:
             return 1e6  # Return a large value to indicate invalid region
 
+        # mole fraction
+        # NOTE: check if x_i is valid
+        if np.any(x_i <= 1e-8) or np.any(x_i >= 1 - 1e-8):
+            return 1e6
+
+        # NOTE: sum x_i = 1
+        if np.abs(np.sum(x_i) - 1) > 1e-8:
+            return 1e6
+
         # NOTE: function
         eqs = []
 
@@ -1974,59 +2085,12 @@ class Equilibria:
             eqs.append(eq)
 
         # Closure relations
-        eqs.append(np.sum(x_i) - 1)   # sum x_i = 1
-        eqs.append(np.sum(y_i) - 1)   # sum y_i = 1
+        # eqs.append(np.sum(x_i) - 1)   # sum x_i = 1
+        # eqs.append(np.sum(y_i) - 1)   # sum y_i = 1
+        # x-y < eps
+        eqs.append(np.sum(x_i) - np.sum(y_i) - 1e-8)  # sum x_i = sum y_i
 
         return eqs
-
-    def xy_flash(self,
-                 V_F_ratio: float,
-                 z_i: np.ndarray,
-                 K_i: np.ndarray,
-                 AcCo_i: Optional[np.ndarray] = None) -> Dict[str, np.ndarray]:
-        '''
-        Calculate liquid/vapor mole fraction (xi, yi) using V/F ratio and K ratio.
-
-        Parameters
-        ----------
-        V_F_ratio : float
-            Vapor-to-liquid ratio (V/F).
-        zi : array-like
-            Feed mole fraction of each component in the mixture.
-        Ki : array-like
-            K ratio of each component in the mixture.
-        AcCo_i : array-like
-            Activity coefficient of each component in the mixture.
-
-        Returns
-        -------
-        dict
-            Dictionary containing the following:
-            - liquid: liquid mole fraction (xi) [dimensionless]
-            - vapor: vapor mole fraction (yi) [dimensionless]
-        '''
-        try:
-            # check
-            if AcCo_i is None:
-                # equals unity for ideal solution
-                AcCo_i = np.ones(self.component_num)
-
-            # init
-            x_i = np.zeros(self.component_num)
-            y_i = np.zeros(self.component_num)
-
-            # liquid/vapor mole fraction
-            for i in range(self.component_num):
-                x_i[i] = (z_i[i])/(1+(V_F_ratio)*(K_i[i]*AcCo_i[i]-1))
-                y_i[i] = K_i[i]*AcCo_i[i]*x_i[i]
-
-            # res
-            return {
-                'liquid': x_i,
-                'vapor': y_i
-            }
-        except Exception as e:
-            raise Exception(f"Error in xy_flash calculation: {e}")
 
     def fIFL2(self, x, params):
         '''
@@ -2202,3 +2266,52 @@ class Equilibria:
             # {'type': 'eq', 'fun': liquid_sum},
             {'type': 'eq', 'fun': vapor_sum},
         ]
+
+    def xy_flash(self,
+                 V_F_ratio: float,
+                 z_i: np.ndarray,
+                 K_i: np.ndarray,
+                 AcCo_i: Optional[np.ndarray] = None) -> Dict[str, np.ndarray]:
+        '''
+        Calculate liquid/vapor mole fraction (xi, yi) using V/F ratio and K ratio.
+
+        Parameters
+        ----------
+        V_F_ratio : float
+            Vapor-to-liquid ratio (V/F).
+        zi : array-like
+            Feed mole fraction of each component in the mixture.
+        Ki : array-like
+            K ratio of each component in the mixture.
+        AcCo_i : array-like
+            Activity coefficient of each component in the mixture.
+
+        Returns
+        -------
+        dict
+            Dictionary containing the following:
+            - liquid: liquid mole fraction (xi) [dimensionless]
+            - vapor: vapor mole fraction (yi) [dimensionless]
+        '''
+        try:
+            # check
+            if AcCo_i is None:
+                # equals unity for ideal solution
+                AcCo_i = np.ones(self.component_num)
+
+            # init
+            x_i = np.zeros(self.component_num)
+            y_i = np.zeros(self.component_num)
+
+            # liquid/vapor mole fraction
+            for i in range(self.component_num):
+                x_i[i] = (z_i[i])/(1+(V_F_ratio)*(K_i[i]*AcCo_i[i]-1))
+                y_i[i] = K_i[i]*AcCo_i[i]*x_i[i]
+
+            # res
+            return {
+                'liquid': x_i,
+                'vapor': y_i
+            }
+        except Exception as e:
+            raise Exception(f"Error in xy_flash calculation: {e}")

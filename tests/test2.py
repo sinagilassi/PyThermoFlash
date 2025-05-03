@@ -130,18 +130,18 @@ inputs = {
 
 # SECTION: flash calculation
 # NOTE: flash calculation (least_squares)
-# res_bp = vle.flash_isothermal(inputs=inputs)
-# print(res_bp)
+res_bp = vle.flash_isothermal(inputs=inputs)
+print(res_bp)
 
 # NOTE: flash calculation (minimize): not recommended
 # res_bp = vle.flash_isothermal(inputs=inputs, solver_method='minimize')
 # print(res_bp)
 
-# NOTE: modified raoult's law
-res_bp = vle.flash_isothermal(
-    inputs=inputs,
-    equilibrium_model='modified-raoult',
-    activity_model='NRTL',
-    solver_method='minimize',
-    activity_inputs=activity_inputs)
-print(res_bp)
+# REVIEW: modified raoult's law (soon)
+# res_bp = vle.flash_isothermal(
+#     inputs=inputs,
+#     equilibrium_model='modified-raoult',
+#     activity_model='NRTL',
+#     solver_method='least_squares',
+#     activity_inputs=activity_inputs)
+# print(res_bp)
