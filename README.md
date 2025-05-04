@@ -1,48 +1,73 @@
 # 🧪 PyThermoFlash
 
+![PyThermoFlash](https://drive.google.com/uc?export=view&id=1lFADXEDZMwfsLvWdBhZgAa3AeCmF419W)
+
 ![Downloads](https://img.shields.io/pypi/dm/PyThermoFlash) ![PyPI](https://img.shields.io/pypi/v/PyThermoFlash) ![Python Version](https://img.shields.io/pypi/pyversions/PyThermoFlash.svg) ![License](https://img.shields.io/pypi/l/PyThermoFlash) ![Read the Docs](https://img.shields.io/readthedocs/PyThermoFlash)
 
-PyThermoFlash is a comprehensive computational tool designed for engineers, researchers, and scientists working with thermodynamic systems. The package focuses on flash calculations - a fundamental procedure in process simulation that determines the equilibrium state of a mixture at specified conditions. PyThermoFlash implements various thermodynamic models to accurately predict phase behavior and properties of complex fluid systems.
+PyThermoFlash is a powerful and user-friendly computational tool tailored for engineers, researchers, and scientists working with thermodynamic systems. It specializes in performing bubble-point, dew-point, and flash calculations, which are essential for determining the equilibrium state of mixtures under specified conditions. With support for various thermodynamic models, PyThermoFlash ensures accurate predictions of phase behavior and properties for complex fluid systems.
 
-## ✨ Features
+## 🔎 Thermodynamic Calculations in PyThermoFlash
 
-- **Flash Calculations**:
-  - PT-flash (pressure-temperature)
-  - PH-flash (pressure-enthalpy)
-  - PS-flash (pressure-entropy)
-  - VT-flash (volume-temperature)
+### 🔵 Bubble-Point Pressure
 
-- **Thermodynamic Models**:
-  - Activity coefficient models: NRTL, UNIQUAC, Wilson
-  - Equation of State (EoS) models: Peng-Robinson, Soave-Redlich-Kwong, etc (soon).
+The bubble-point pressure is the pressure at which the first bubble of vapor forms when heating a liquid mixture at constant temperature. It represents the equilibrium pressure where the liquid starts to vaporize at a given temperature and composition.
 
-- **Property Calculations**:
-  - Vapor-liquid equilibria
-  - Fugacities and activity coefficients
+### 🔵 Bubble-Point Temperature
 
-## 🔑 Key Points
+The bubble-point temperature is the temperature at which the first bubble of vapor appears when heating a liquid mixture at constant pressure. It marks the onset of vaporization under the specified pressure and composition.
 
-- **Accuracy**: Rigorously validated against experimental data and industry-standard simulators
-- **Performance**: Optimized algorithms for fast convergence of equilibrium calculations
-- **User-Friendly**: Intuitive API with comprehensive documentation and examples
-- **Extensibility**: Modular design allowing for easy implementation of new models
-- **Open Source**: Community-driven development encouraging contributions and improvements
+### 🟠 Dew-Point Pressure
+
+The dew-point pressure is the pressure at which the first drop of liquid condenses from a vapor mixture at a constant temperature. It defines the equilibrium pressure where condensation begins at the given temperature and vapor composition.
+
+### 🟠 Dew-Point Temperature
+
+The dew-point temperature is the temperature at which the first droplet of liquid forms when cooling a vapor mixture at constant pressure. It indicates the onset of condensation under the specified pressure and composition.
+
+### ⚡ Isothermal Flash Calculation
+
+The isothermal flash calculation determines the amounts and compositions of the vapor and liquid phases when a mixture partially vaporizes or condenses at a fixed temperature and pressure. This calculation is fundamental in process simulation, as it models phase equilibrium and phase splits for complex mixtures.
+
+## 📚 Thermodynamic Models Supported
+
+PyThermoFlash supports a variety of thermodynamic models to calculate phase equilibria, ranging from ideal to non-ideal mixtures.
+
+### Supported Models:
+
+- **📏 Raoult’s Law**: For ideal mixtures, Raoult’s law is used to calculate the vapor pressure of each component.
+- **🔗 NRTL (Non-Random Two-Liquid Model)**: Suitable for non-ideal mixtures, especially those with strong intermolecular interactions.
+- **🧪 UNIQUAC (Universal Quasi-Chemical Model)**: Ideal for systems with significant differences in molecular size or polarity.
 
 ## 📥 Installation
 
+Install PyThermoFlash via pip:
+
 ```bash
 pip install PyThermoFlash
-```
 
-## 🚀 Usage Example
-
-```python
 import pyThermoFlash as ptf
 ```
 
+### 🔗 Dependencies
+
+PyThermoFlash depends on the `PyThermoModels` library for thermodynamic calculations. Ensure you have it installed:
+
+Additionally, PyThermoFlash uses `PyThermoDB` as a reference for thermodynamic data. Make sure the required data files are available in your environment.
+
+```bash
+pip install PyThermoModels
+pip install PyThermoDB
+```
+
+## 🧪 Examples
+
+To get started with PyThermoFlash, you can explore the `tests` folder in the project directory. It contains various test scripts and configurations that demonstrate how to use the library for different thermodynamic calculations.
+
+Additionally, visit the [Read the Docs](https://pythermoflash.readthedocs.io/en/latest/) page to familiarize yourself with the detailed documentation and calculation methods.
+
 ## 🤝 Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Contributions are welcome! Please feel free to submit a Pull Request to improve the project.
 
 ## 📝 License
 
@@ -50,8 +75,7 @@ This project is licensed under the MIT License. You are free to use, modify, and
 
 ## ❓ FAQ
 
-For any question, contact me on [LinkedIn](https://www.linkedin.com/in/sina-gilassi/)
-
+For any questions, contact me on [LinkedIn](https://www.linkedin.com/in/sina-gilassi/).
 
 ## 👨‍💻 Authors
 
