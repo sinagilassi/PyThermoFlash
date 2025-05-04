@@ -1840,11 +1840,28 @@ class Equilibria:
                 if _res.success is False:
                     raise Exception(f'root not found! {_res.message}')
 
+                # set
+                solver_message = _res.message
+
                 # -> result analysis
                 V_F_ratio = _res.x[0]
-                x_liq = np.zeros_like(z_i)
-                x_liq[:-1] = _res.x[1:]
-                x_liq[-1] = 1 - np.sum(x_liq[:-1])
+                x_i = np.zeros_like(z_i)
+                x_i[:-1] = _res.x[1:]
+                x_i[-1] = 1 - np.sum(x_i[:-1])
+                # to array
+                x_i = np.array(x_i)
+                # comp
+                x_i_comp = self.__mole_fraction_comp(x_i)
+
+                # SECTION: calculate activity coefficient
+                # NOTE: calculate
+                AcCo_i = self.__activity_coefficient(
+                    activity_model,
+                    activity,
+                    x_i_comp,
+                    T_value,
+                    **kwargs
+                )
 
             else:
                 raise Exception('solver method not found!')
@@ -2175,6 +2192,9 @@ class Equilibria:
         # SECTION: system of nonlinear equations (NLE)
         # Residuals of component balances
         residuals = z_i - ((1 - VF) * x_i + VF * y_i)
+
+        # x_i sum = 1
+        residuals = np.append(residuals, np.sum(x_i) - 1)
 
         # Objective: minimize sum of squared residuals
         return np.sum(residuals**2)

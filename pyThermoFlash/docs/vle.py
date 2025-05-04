@@ -926,7 +926,7 @@ class VLE(Equilibria):
     def flash_isothermal(self,
                          inputs: Dict[str, float],
                          equilibrium_model: Literal[
-                             'raoult'
+                             'raoult', 'modified-raoult'
                          ] = 'raoult',
                          fugacity_model: Literal[
                              'vdW', 'PR', 'RK', 'SRK'
@@ -935,7 +935,7 @@ class VLE(Equilibria):
                              'NRTL', 'UNIQUAC']
                          = 'NRTL',
                          solver_method: Literal[
-                             'least_squares'
+                             'least_squares', 'minimize'
                          ] = 'least_squares',
                          flash_checker: bool = False,
                          message: Optional[str] = None,
