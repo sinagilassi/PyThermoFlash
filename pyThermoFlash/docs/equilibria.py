@@ -2199,6 +2199,96 @@ class Equilibria:
         # Objective: minimize sum of squared residuals
         return np.sum(residuals**2)
 
+    def fIFL3(self, x, params):
+        '''
+        Flash isothermal function (nonlinear equations), according to Raoult's law.
+
+        Parameters
+        ----------
+        x : array-like
+            VF : vapor-feed ratio [dimensionless]
+            x_i : liquid mole fraction [dimensionless]
+        params : tuple
+            Tuple containing the following:
+            - zi: feed mole fraction (zi)
+            - Ki: K ratio of each component in the mixture
+        '''
+        # NOTE: extract variables
+        # vapor fraction
+        VF = x[0]
+        # liquid mole fraction
+        x_i = np.zeros(self.component_num)
+        x_i[:-1] = x[1:]
+        # last x_i
+        x_i[-1] = 1 - np.sum(x_i[:-1])
+
+        # NOTE: params
+        # equilibrium model
+        eq_model = params['equilibrium_model']
+        # feed mole fraction
+        z_i = params['mole_fraction']
+        # temperature [K]
+        T = params['temperature']
+        # pressure [Pa]
+        P = params['pressure']
+        # K ratio (P*/P) [dimensionless]
+        K_i = params['K_ratio']
+        # activity model
+        activity_model = params['activity_model']
+        # activity
+        activity: Activity = params['activity']
+        # activity inputs
+        activity_inputs = params['activity_inputs']
+
+        # NOTE: activity coefficient
+        # equals unity for ideal solution
+        AcCo_i = np.ones(self.component_num)
+
+        # SECTION: equilibrium model
+        if eq_model == 'modified-raoult':
+            # ! Modified Raoult's law
+            # set x loop
+            x_i_comp = self.__mole_fraction_comp(x_i)
+
+            # NOTE: calculate activity coefficient
+            # NOTE: check model
+            if activity_model == 'NRTL':
+                # calculate activity
+                res_ = activity.NRTL(
+                    self.components,
+                    x_i_comp,
+                    T,
+                    activity_inputs=activity_inputs)
+                # extract
+                AcCo_i = res_['value']
+            elif activity_model == 'UNIQUAC':
+                # calculate activity
+                res_ = activity.UNIQUAC(
+                    self.components,
+                    x_i_comp,
+                    T,
+                    activity_inputs=activity_inputs)
+                # extract
+                AcCo_i = res_['value']
+            else:
+                # equals unity for ideal solution
+                AcCo_i = np.ones(self.component_num)
+
+        # NOTE: update K_i
+        K_i = AcCo_i * K_i
+        # NOTE: vapor mole fraction
+        y_i = K_i * x_i
+
+        # SECTION: system of nonlinear equations (NLE)
+        # Residuals of component balances
+        residuals = z_i - ((1 - VF) * x_i + VF * y_i)
+
+        # x_i sum = 1
+        residuals = np.append(residuals, np.sum(x_i) - 1)
+
+        # Objective: minimize sum of squared residuals
+        return np.sum(residuals**2)
+
     def flash_constraints(self,
                           z: np.ndarray,
                           K: np.ndarray,
