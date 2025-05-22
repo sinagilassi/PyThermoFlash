@@ -2,7 +2,7 @@
 # -----
 # packages/modules
 import time  # Import the time module
-from typing import List, Dict, Optional, Literal
+from typing import List, Dict, Optional, Literal, Any
 import numpy as np
 import pycuc
 # local
@@ -130,7 +130,7 @@ class VLE(Equilibria):
                 f"Error in setting models: {e}")
 
     def bubble_pressure(self,
-                        inputs: Dict[str, float],
+                        inputs: Dict[str, Any],
                         equilibrium_model: Literal[
                             'raoult', 'modified-raoult'
                         ] = 'raoult',
@@ -324,7 +324,7 @@ class VLE(Equilibria):
                 f"Error in bubble_pressure calculation: {e}")
 
     def dew_pressure(self,
-                     inputs: Dict[str, float],
+                     inputs: Dict[str, Any],
                      equilibrium_model: Literal[
                          'raoult', 'modified-raoult'
                      ] = 'raoult',
@@ -521,7 +521,7 @@ class VLE(Equilibria):
                 f"Error in bubble_pressure calculation: {e}")
 
     def bubble_temperature(self,
-                           inputs: Dict[str, float],
+                           inputs: Dict[str, Any],
                            equilibrium_model: Literal[
                                'raoult', 'modified-raoult'
                            ] = 'raoult',
@@ -724,7 +724,7 @@ class VLE(Equilibria):
                 f"Error in bubble_temperature calculation: {e}")
 
     def dew_temperature(self,
-                        inputs: Dict[str, float],
+                        inputs: Dict[str, Any],
                         equilibrium_model: Literal[
                             'raoult', 'modified-raoult'
                         ] = 'raoult',
@@ -812,8 +812,12 @@ class VLE(Equilibria):
             # NOTE: set inputs - dict
             mole_fractions = inputs['mole_fraction']
             # NOTE: pressure [Pa]
+            # set
+            pressure_value = float(inputs['pressure'][0])
+            pressure_unit = str(inputs['pressure'][1])
+
             pressure = pycuc.convert_from_to(
-                inputs['pressure'][0], inputs['pressure'][1], 'Pa')
+                pressure_value, pressure_unit, 'Pa')
 
             # check mole fractions
             if not isinstance(mole_fractions, dict):
@@ -924,7 +928,7 @@ class VLE(Equilibria):
                 f"Error in dew_temperature calculation: {e}")
 
     def flash_isothermal(self,
-                         inputs: Dict[str, float],
+                         inputs: Dict[str, Any],
                          equilibrium_model: Literal[
                              'raoult', 'modified-raoult'
                          ] = 'raoult',

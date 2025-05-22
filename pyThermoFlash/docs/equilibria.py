@@ -5,7 +5,6 @@ from typing import List, Dict, Optional, Literal
 import numpy as np
 from scipy import optimize
 import pycuc
-import pyThermoModels as ptm
 # local
 from .source import Source
 from .activity import Activity
@@ -38,20 +37,26 @@ class Equilibria:
         '''Get the number of components in the system.'''
         return self.__comp_num
 
-    def __mole_fraction_comp(self, z_i: List[float]) -> Dict[str, float]:
+    def __mole_fraction_comp(self,
+                             z_i: List[float] | np.ndarray
+                             ) -> Dict[str, float]:
         '''
         Convert mole fraction list to dictionary.
 
         Parameters
         ----------
-        z_i : list
-            List of mole fractions.
+        z_i : list | np.ndarray
+            List of mole fractions of each component in the mixture.
 
         Returns
         -------
         dict
             Dictionary of mole fractions.
         '''
+        # NOTE: check type
+        if isinstance(z_i, np.ndarray):
+            # convert to list
+            z_i = [float(z) for z in z_i]
         # convert to dict
         return {str(self.components[i]): z_i[i]
                 for i in range(self.component_num)}
@@ -59,9 +64,10 @@ class Equilibria:
     def __activity_coefficient(self,
                                activity_model: Literal['NRTL', 'UNIQUAC'],
                                activity: Activity,
-                               x_i: np.ndarray,
+                               x_i_comp: Dict[str, float],
                                T: float,
-                               **kwargs) -> np.ndarray:
+                               **kwargs
+                               ) -> np.ndarray:
         '''
         Calculate activity coefficient using NRTL or UNIQUAC model.
 
@@ -71,8 +77,8 @@ class Equilibria:
             Activity model to be used ('NRTL' or 'UNIQUAC').
         activity : Activity
             Activity object for calculating activity coefficients.
-        x_i : array-like
-            Liquid mole fraction of each component in the mixture.
+        x_i_comp : dict
+            Dictionary of mole fractions of each component in the mixture.
         T : float
             Temperature [K].
         kwargs : dict
@@ -89,7 +95,7 @@ class Equilibria:
                 # calculate activity
                 res_ = activity.NRTL(
                     self.components,
-                    x_i,
+                    x_i_comp,
                     T,
                     **kwargs)
                 # extract
@@ -98,7 +104,7 @@ class Equilibria:
                 # calculate activity
                 res_ = activity.UNIQUAC(
                     self.components,
-                    x_i,
+                    x_i_comp,
                     T,
                     **kwargs)
                 # extract
@@ -967,8 +973,9 @@ class Equilibria:
                 x_i[-1] = 1 - np.sum(x_i[:-1])
                 # to array
                 x_i = np.array(x_i)
+                x_i_ = [float(i) for i in x_i]
                 # comp
-                x_i_comp = self.__mole_fraction_comp(x_i)
+                x_i_comp = self.__mole_fraction_comp(x_i_)
 
                 # SECTION: calculate activity coefficient
                 # NOTE: calculate
@@ -1009,8 +1016,9 @@ class Equilibria:
                 x_i[-1] = 1 - np.sum(x_i[:-1])
                 # to array
                 x_i = np.array(x_i)
+                x_i_ = [float(i) for i in x_i]
                 # comp
-                x_i_comp = self.__mole_fraction_comp(x_i)
+                x_i_comp = self.__mole_fraction_comp(x_i_)
 
                 # SECTION: calculate activity coefficient
                 # NOTE: calculate
@@ -1047,8 +1055,9 @@ class Equilibria:
                 x_i[-1] = 1 - np.sum(x_i[:-1])
                 # to array
                 x_i = np.array(x_i)
+                x_i_ = [float(i) for i in x_i]
                 # comp
-                x_i_comp = self.__mole_fraction_comp(x_i)
+                x_i_comp = self.__mole_fraction_comp(x_i_)
 
                 # SECTION: calculate activity coefficient
                 # NOTE: calculate
@@ -1202,7 +1211,7 @@ class Equilibria:
         DePr = 1/np.dot(y_i, 1/(VaPr_i*AcCo_i))
 
         # SECTION: loss function
-        loss = abs((P/DePr) - 1)
+        loss = abs(float(P/DePr) - 1)
 
         return loss
 
@@ -1307,11 +1316,11 @@ class Equilibria:
                 DePr = DePr_new
 
         # SECTION: loss function
-        loss = abs((P/DePr) - 1)
+        loss = abs(float(P/DePr) - 1)
 
         return loss
 
-    def fDT2(self, x, params) -> float:
+    def fDT2(self, x, params) -> List[float]:
         '''
         dew temperature function using modified raoult'law assumption, the loss function is the absolute difference between the calculated dew pressure and the given pressure (P).
 
@@ -1327,7 +1336,7 @@ class Equilibria:
 
         Returns
         -------
-        loss : float
+        loss : list[float]
             Loss function value, which is the absolute difference between the calculated dew pressure and the given pressure (P).
             - Single scalar value.
         '''
@@ -1402,7 +1411,7 @@ class Equilibria:
         DePr = 1/np.dot(y_i, 1/(VaPr_i*AcCo_i))
 
         # SECTION: loss function
-        loss = abs((P/DePr) - 1)
+        loss = abs((float(P)/float(DePr)) - 1)
 
         return [loss]
 
@@ -1576,6 +1585,9 @@ class Equilibria:
         - The dew pressure is calculated using Raoult's law.
         '''
         try:
+            # NOTE: mole fraction [array]
+            z_i_ = np.array(z_i)
+
             # NOTE: vapor pressure [Pa]
             VaPr_i = np.zeros(self.component_num)
 
@@ -1598,9 +1610,9 @@ class Equilibria:
                 VaPr_i[i] = VaPr_
 
             # NOTE: calculate bubble pressure
-            BuPr = self.__cal_bubble_pressure(z_i, VaPr_i)
+            BuPr = self.__cal_bubble_pressure(z_i_, VaPr_i)
             # NOTE: calculate dew pressure
-            DePr = self.__cal_dew_pressure(z_i, VaPr_i)
+            DePr = self.__cal_dew_pressure(z_i_, VaPr_i)
 
             # NOTE: check if the given pressure and temperature are within the valid range
             if Pf < BuPr and Pf > DePr:
@@ -2356,13 +2368,17 @@ class Equilibria:
                 y = K * x
             elif equilibrium_model == 'modified-raoult':
                 # ! Modified Raoult's law
-                # calculate activity coefficient
-                AcCo_i = self.__activity_coefficient(
-                    activity_model,
-                    activity,
-                    x_comp,
-                    T,
-                    **kwargs)
+                # check
+                if activity:
+                    # calculate activity coefficient
+                    AcCo_i = self.__activity_coefficient(
+                        activity_model,
+                        activity,
+                        x_comp,
+                        T,
+                        **kwargs)
+                else:
+                    raise ValueError("Activity model not provided.")
 
                 # calculate y
                 y = AcCo_i * K * x
@@ -2381,7 +2397,10 @@ class Equilibria:
                  V_F_ratio: float,
                  z_i: np.ndarray,
                  K_i: np.ndarray,
-                 AcCo_i: Optional[np.ndarray] = None) -> Dict[str, np.ndarray]:
+                 AcCo_i: Optional[
+                     np.ndarray
+                 ] = None
+                 ) -> Dict[str, np.ndarray]:
         '''
         Calculate liquid/vapor mole fraction (xi, yi) using V/F ratio and K ratio.
 

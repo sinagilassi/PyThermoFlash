@@ -43,6 +43,11 @@ class Activity:
             # extract activity model inputs
             activity_inputs = kwargs.get('activity_inputs', None)
 
+            # check
+            if activity_inputs is None:
+                raise ValueError(
+                    "No valid source provided for activity model inputs.")
+
             # NOTE: check if activity_inputs is a dictionary
             if activity_inputs is not None:
                 # check if activity_inputs is a dictionary
@@ -83,6 +88,10 @@ class Activity:
                 components=components, model_name='NRTL')
             # set
             activity_nrtl = activity.nrtl
+            # check
+            if activity_nrtl is None:
+                raise ValueError(
+                    "Failed to initialize NRTL activity model. Please check the components and model name.")
 
             # NOTE: check method
             tau_ij_cal_method = 0
@@ -169,11 +178,15 @@ class Activity:
             # NOTE: calculate the binary interaction parameter matrix (tau_ij)
             if tau_ij_cal_method == 1:
                 tau_ij, _ = activity_nrtl.cal_tau_ij_M1(
-                    temperature=temperature, dg_ij=dg_ij)
+                    temperature=temperature,
+                    dg_ij=dg_ij)
             elif tau_ij_cal_method == 2:
                 tau_ij, _ = activity_nrtl.cal_tau_ij_M2(
                     temperature=temperature,
-                    a_ij=a_ij, b_ij=b_ij, c_ij=c_ij, d_ij=d_ij)
+                    a_ij=a_ij,
+                    b_ij=b_ij,
+                    c_ij=c_ij,
+                    d_ij=d_ij)
             else:
                 raise ValueError(
                     "Invalid method for calculating tau_ij. Must be 1 or 2.")
@@ -229,6 +242,11 @@ class Activity:
             # SECTION: check src
             # extract activity model inputs
             activity_inputs = kwargs.get('activity_inputs', None)
+
+            # check
+            if activity_inputs is None:
+                raise ValueError(
+                    "No valid source provided for activity model inputs.")
 
             # NOTE: check if activity_inputs is a dictionary
             if activity_inputs is not None:
@@ -294,11 +312,19 @@ class Activity:
             # set
             activity_uniquac = activity.uniquac
 
+            # check
+            if activity_uniquac is None:
+                raise ValueError(
+                    "Failed to initialize UNIQUAC activity model. Please check the components and model name.")
+
             # NOTE: check method
             tau_ij_cal_method = 0
             if dU_ij_src is None:
                 # check if a_ij, b_ij, c_ij are provided
-                if a_ij_src is None or b_ij_src is None or c_ij_src is None or d_ij_src is None:
+                if (a_ij_src is None or
+                    b_ij_src is None or
+                    c_ij_src is None or
+                        d_ij_src is None):
                     raise ValueError(
                         "No valid source provided for interaction energy parameter (Δg_ij) or constants a, b, c, and d.")
                 # set method
@@ -307,7 +333,7 @@ class Activity:
                 # ! a_ij
                 if isinstance(a_ij_src, TableMatrixData):
                     a_ij = a_ij_src.mat('a', components)
-                elif isinstance(a_ij_src, List[List[float]]):
+                elif isinstance(a_ij_src, list):
                     a_ij = np.array(a_ij_src)
                 elif isinstance(a_ij_src, np.ndarray):
                     a_ij = a_ij_src
@@ -318,7 +344,7 @@ class Activity:
                 # ! b_ij
                 if isinstance(b_ij_src, TableMatrixData):
                     b_ij = b_ij_src.mat('b', components)
-                elif isinstance(b_ij_src, List[List[float]]):
+                elif isinstance(b_ij_src, list):
                     b_ij = np.array(b_ij_src)
                 elif isinstance(b_ij_src, np.ndarray):
                     b_ij = b_ij_src
@@ -329,7 +355,7 @@ class Activity:
                 # ! c_ij
                 if isinstance(c_ij_src, TableMatrixData):
                     c_ij = c_ij_src.mat('c', components)
-                elif isinstance(c_ij_src, List[List[float]]):
+                elif isinstance(c_ij_src, list):
                     c_ij = np.array(c_ij_src)
                 elif isinstance(c_ij_src, np.ndarray):
                     c_ij = c_ij_src
@@ -340,7 +366,7 @@ class Activity:
                 # ! d_ij
                 if isinstance(d_ij_src, TableMatrixData):
                     d_ij = d_ij_src.mat('d', components)
-                elif isinstance(d_ij_src, List[List[float]]):
+                elif isinstance(d_ij_src, list):
                     d_ij = np.array(d_ij_src)
                 elif isinstance(d_ij_src, np.ndarray):
                     d_ij = d_ij_src
@@ -351,7 +377,7 @@ class Activity:
                 # use dU_ij
                 if isinstance(dU_ij_src, TableMatrixData):
                     dU_ij = dU_ij_src.mat('dU', components)
-                elif isinstance(dU_ij_src, List[List[float]]):
+                elif isinstance(dU_ij_src, list):
                     dU_ij = np.array(dU_ij_src)
                 elif isinstance(dU_ij_src, np.ndarray):
                     dU_ij = dU_ij_src
@@ -367,12 +393,30 @@ class Activity:
             # SECTION: calculate tau_ij
             # NOTE: calculate the binary interaction parameter matrix (tau_ij)
             if tau_ij_cal_method == 1:
-                tau_ij, _ = activity_uniquac.cal_tau_ij_M1(
-                    temperature=temperature, dU_ij=dU_ij)
+                # check
+                if isinstance(dU_ij, np.ndarray):
+                    tau_ij, _ = activity_uniquac.cal_tau_ij_M1(
+                        temperature=temperature,
+                        dU_ij=dU_ij)
+                else:
+                    raise ValueError(
+                        "Invalid source for interaction energy parameter (Δg_ij). Must be numpy array.")
             elif tau_ij_cal_method == 2:
-                tau_ij, _ = activity_uniquac.cal_tau_ij_M2(
-                    temperature=temperature,
-                    a_ij=a_ij, b_ij=b_ij, c_ij=c_ij, d_ij=d_ij)
+                # check
+                if (isinstance(a_ij, np.ndarray) and
+                    isinstance(b_ij, np.ndarray) and
+                    isinstance(c_ij, np.ndarray) and
+                        isinstance(d_ij, np.ndarray)):
+                    # calculate tau_ij
+                    tau_ij, _ = activity_uniquac.cal_tau_ij_M2(
+                        temperature=temperature,
+                        a_ij=a_ij,
+                        b_ij=b_ij,
+                        c_ij=c_ij,
+                        d_ij=d_ij)
+                else:
+                    raise ValueError(
+                        "Invalid source for interaction energy parameter (a_ij, b_ij, c_ij, d_ij). Must be numpy array.")
             else:
                 raise ValueError(
                     "Invalid method for calculating tau_ij. Must be 1 or 2.")
