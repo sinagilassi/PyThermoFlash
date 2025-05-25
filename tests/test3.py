@@ -124,7 +124,7 @@ activity_inputs = {
 }
 
 # calculated activity coefficients (for bubble-pressure calculation)
-activity_inputs = {
+activity_inputs_1 = {
     'activity_coefficients': {
         'benzene': 1.0,
         'toluene': 1.1
@@ -146,7 +146,7 @@ print(res_bp)
 # NOTE: modified raoult's law
 res_bp = vle.bubble_pressure(
     inputs=inputs, equilibrium_model='modified-raoult',
-    activity_model='NRTL', activity_inputs=activity_inputs)
+    activity_model='NRTL', activity_inputs=activity_inputs_1)
 print(res_bp)
 
 # SECTION: dew point pressure calculation
