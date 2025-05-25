@@ -123,6 +123,14 @@ activity_inputs = {
     'd_ij': d_ij
 }
 
+# calculated activity coefficients (for bubble-pressure calculation)
+activity_inputs = {
+    'activity_coefficients': {
+        'benzene': 1.0,
+        'toluene': 1.1
+    },
+}
+
 # inputs
 inputs = {
     'mole_fraction': {'benzene': 0.26, 'toluene': 0.74},

@@ -190,6 +190,7 @@ class VLE(Equilibria):
         - The function will raise a ValueError if the inputs are not valid.
         - The default equilibrium model is 'raoult', and the default activity model is 'NRTL'.
         - The function will return the bubble pressure in Pascals.
+        - The activity coefficient for each component can be directly defined in the activity_inputs dictionary.
         '''
         try:
             # ! Start timing

@@ -118,6 +118,49 @@ class Equilibria:
         except Exception as e:
             raise Exception(f'activity coefficient calculation failed! {e}')
 
+    def set_calculated_activity_coefficient(self,
+                                            AcCo_i_cal:
+                                            Dict[str, float] | np.ndarray | list,
+                                            ) -> np.ndarray:
+        """
+        Set calculated activity coefficients, provided by the user.
+
+        Parameters
+        ----------
+        AcCo_i_cal : dict | np.ndarray | list
+            Activity coefficients for each component in the mixture.
+            If a dict is provided, it should contain component names as keys
+            and their corresponding activity coefficients as values.
+            If a numpy array or list is provided, it should contain activity
+            coefficients in the same order as the components.
+
+        Returns
+        -------
+        AcCo_i : np.ndarray
+            Activity coefficients as a numpy array.
+        """
+        try:
+            # NOTE: check type
+            if isinstance(AcCo_i_cal, dict):
+                # convert to array based on components
+                AcCo_i = np.zeros(self.component_num)
+                for i, component in enumerate(self.components):
+                    if component in AcCo_i_cal:
+                        AcCo_i[i] = AcCo_i_cal[component]
+                    else:
+                        raise Exception(
+                            f"activity_coefficients for {component} not found!")
+            elif isinstance(AcCo_i_cal, np.ndarray):
+                AcCo_i = AcCo_i_cal
+            elif isinstance(AcCo_i_cal, list):
+                AcCo_i = np.array(AcCo_i_cal)
+            else:
+                raise Exception(
+                    'activity_coefficients must be a dict, list or numpy array!')
+            return AcCo_i
+        except Exception as e:
+            raise Exception(f'set activity coefficient failed! {e}')
+
     def _BP(self, params, **kwargs):
         '''
         The bubble-point pressure (BP) calculation determines the pressure at which the first bubble of vapor forms when a liquid mixture is heated at a constant temperature. It is used to find the pressure for a given temperature at which the liquid will begin to vaporize. This calculation is based on `Raoult's law`, which states that the vapor pressure of each component in the mixture is proportional to its mole fraction in the liquid phase.
@@ -192,18 +235,28 @@ class Equilibria:
             T_value = T['value']
 
             # SECTION: activity coefficient
-            # NOTE: init model
-            # init NRTL model
-            activity = Activity()
+            # check kwargs
+            activity_inputs = kwargs.get('activity_inputs', {})
+            # check calculated activity coefficients
+            if 'activity_coefficients' in activity_inputs:
+                AcCo_i_ = activity_inputs['activity_coefficients']
 
-            # NOTE: calculate
-            AcCo_i = self.__activity_coefficient(
-                activity_model,
-                activity,
-                z_i_comp,
-                T_value,
-                **kwargs
-            )
+                # set activity coefficients
+                AcCo_i = self.set_calculated_activity_coefficient(
+                    AcCo_i_)
+            else:
+                # NOTE: init model
+                # init NRTL model
+                activity = Activity()
+
+                # NOTE: calculate
+                AcCo_i = self.__activity_coefficient(
+                    activity_model,
+                    activity,
+                    z_i_comp,
+                    T_value,
+                    **kwargs
+                )
 
             # SECTION: vapor pressure calculation
             # vapor pressure [Pa]
