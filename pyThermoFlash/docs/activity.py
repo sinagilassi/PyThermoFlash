@@ -3,16 +3,30 @@
 # import libs
 import numpy as np
 import pyThermoModels as ptm
-from typing import List, Dict
+from typing import List, Dict, Optional, List, Any
 from pyThermoDB import TableMatrixData
-from typing import Any, Dict, List
-
 # local
 
 
 class Activity:
-    def __init__(self):
-        pass
+    def __init__(self,
+                 datasource: Optional[Dict[str, Any]] = None,
+                 equationsource: Optional[Dict[str, Any]] = None
+                 ):
+        '''
+        Activity model class for pyThermoFlash.
+
+        Parameters
+        ----------
+        datasource : dict, optional
+            Data source for the model, containing data for components and equations.
+        equationsource : dict, optional
+            Equation source for the model, containing equations for components.
+        '''
+        # set datasource
+        self.datasource = datasource
+        # set equationsource
+        self.equationsource = equationsource
 
     def __repr__(self):
         return "Activity model class for pyThermoFlash"
@@ -45,8 +59,13 @@ class Activity:
 
             # check
             if activity_inputs is None:
+                # ! check nrtl inputs in datasource
+                activity_inputs = self.datasource.get('NRTL', None)
+
+            # check if activity_inputs is None
+            if activity_inputs is None:
                 raise ValueError(
-                    "No valid source provided for activity model inputs.")
+                    "No valid source provided for activity model (NRTL) inputs.")
 
             # NOTE: check if activity_inputs is a dictionary
             if activity_inputs is not None:
@@ -245,8 +264,13 @@ class Activity:
 
             # check
             if activity_inputs is None:
+                # ! check nrtl inputs in datasource
+                activity_inputs = self.datasource.get('UNIQUAC', None)
+
+            # check if activity_inputs is None
+            if activity_inputs is None:
                 raise ValueError(
-                    "No valid source provided for activity model inputs.")
+                    "No valid source provided for activity model (UNIQUAC) inputs.")
 
             # NOTE: check if activity_inputs is a dictionary
             if activity_inputs is not None:

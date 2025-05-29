@@ -124,11 +124,9 @@ activity_inputs = {
 }
 
 # calculated activity coefficients (for bubble-pressure calculation)
-activity_inputs_1 = {
-    'activity_coefficients': {
-        'benzene': 1.0,
-        'toluene': 1.1
-    },
+activity_coefficients = {
+    'benzene': 1.0,
+    'toluene': 1.1
 }
 
 # inputs
@@ -146,7 +144,12 @@ print(res_bp)
 # NOTE: modified raoult's law
 res_bp = vle.bubble_pressure(
     inputs=inputs, equilibrium_model='modified-raoult',
-    activity_model='NRTL', activity_inputs=activity_inputs_1)
+    activity_model='NRTL', activity_inputs=activity_inputs)
+print(res_bp)
+
+res_bp = vle.bubble_pressure(
+    inputs=inputs, equilibrium_model='modified-raoult',
+    activity_model='NRTL', activity_coefficients=activity_coefficients)
 print(res_bp)
 
 # SECTION: dew point pressure calculation
@@ -159,4 +162,9 @@ print(res_dp)
 res_dp = vle.dew_pressure(
     inputs=inputs, equilibrium_model='modified-raoult',
     activity_model='NRTL', activity_inputs=activity_inputs)
+print(res_dp)
+
+res_dp = vle.dew_pressure(
+    inputs=inputs, equilibrium_model='modified-raoult',
+    activity_model='NRTL', activity_coefficients=activity_coefficients)
 print(res_dp)

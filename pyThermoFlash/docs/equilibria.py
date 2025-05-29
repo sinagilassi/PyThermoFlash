@@ -6,7 +6,6 @@ import numpy as np
 from scipy import optimize
 import pycuc
 # local
-from .source import Source
 from .activity import Activity
 
 
@@ -17,11 +16,24 @@ class Equilibria:
 
     def __init__(self,
                  components: List[str],
+                 datasource: Optional[Dict] = None,
+                 equationsource: Optional[Dict] = None,
                  **kwargs):
         '''Initialize the Equilibria class.'''
+        # set
         components_ = [component.strip() for component in components]
         self.__components = components_
         self.__comp_num = len(components_)
+
+        # model source
+        self._datasource = datasource
+        self._equationsource = equationsource
+
+        # NOTE: init activity model
+        self.Activity_ = Activity(
+            datasource=self._datasource,
+            equationsource=self._equationsource
+        )
 
     def __repr__(self):
         des = "Phase Equilibria Calculations"
@@ -117,6 +129,50 @@ class Equilibria:
             return AcCo_i
         except Exception as e:
             raise Exception(f'activity coefficient calculation failed! {e}')
+
+    def __check_activity_coefficients(self,
+                                      activity_model: Literal['NRTL', 'UNIQUAC'],
+                                      activity: Activity,
+                                      z_i_comp: Dict[str, float],
+                                      T_value: float,
+                                      **kwargs
+                                      ) -> np.ndarray:
+        '''
+        Check if activity coefficients are provided by the user.
+
+        Returns
+        -------
+        AcCo_i : np.ndarray
+            Activity coefficients as a numpy array.
+        '''
+        try:
+            # SECTION: activity coefficient
+            # ! check kwargs
+            activity_coefficients_ext = kwargs.get(
+                'activity_coefficients', None)
+
+            # check calculated activity coefficients
+            if activity_coefficients_ext:
+                # set
+                AcCo_i_ = activity_coefficients_ext
+
+                # ! set activity coefficients
+                AcCo_i = self.set_calculated_activity_coefficient(
+                    AcCo_i_)
+            else:
+                # NOTE: calculate
+                AcCo_i = self.__activity_coefficient(
+                    activity_model,
+                    activity,
+                    z_i_comp,
+                    T_value,
+                    **kwargs
+                )
+
+            # res
+            return AcCo_i
+        except Exception as e:
+            raise Exception(f'check activity coefficients failed! {e}')
 
     def set_calculated_activity_coefficient(self,
                                             AcCo_i_cal:
@@ -235,19 +291,26 @@ class Equilibria:
             T_value = T['value']
 
             # SECTION: activity coefficient
-            # check kwargs
-            activity_inputs = kwargs.get('activity_inputs', {})
+            # ! check kwargs
+            activity_coefficients_ext = kwargs.get(
+                'activity_coefficients', None)
             # check calculated activity coefficients
-            if 'activity_coefficients' in activity_inputs:
-                AcCo_i_ = activity_inputs['activity_coefficients']
+            if activity_coefficients_ext:
+                # set
+                AcCo_i_ = activity_coefficients_ext
 
-                # set activity coefficients
+                # ! set activity coefficients
                 AcCo_i = self.set_calculated_activity_coefficient(
                     AcCo_i_)
             else:
                 # NOTE: init model
                 # init NRTL model
-                activity = Activity()
+                # activity = Activity(
+                #     datasource=self._datasource,
+                #     equationsource=self._equationsource
+                # )
+
+                activity = self.Activity_
 
                 # NOTE: calculate
                 AcCo_i = self.__activity_coefficient(
@@ -450,19 +513,33 @@ class Equilibria:
                 x_i = y_i.copy()
 
                 # init activity model
-                activity = Activity()
+                # activity = Activity(
+                #     datasource=self._datasource,
+                #     equationsource=self._equationsource
+                # )
+
+                activity = self.Activity_
 
                 # SECTION: iteration
                 for m in range(max_iter):
 
-                    # NOTE: calculate
-                    AcCo_i = self.__activity_coefficient(
+                    # NOTE: check activity coefficients is provided by the user
+                    AcCo_i = self.__check_activity_coefficients(
                         activity_model,
                         activity,
                         x_i_comp,
                         T_value,
                         **kwargs
                     )
+
+                    # NOTE: calculate
+                    # AcCo_i = self.__activity_coefficient(
+                    #     activity_model,
+                    #     activity,
+                    #     x_i_comp,
+                    #     T_value,
+                    #     **kwargs
+                    # )
 
                     # NOTE: dew pressure [Pa]
                     DePr_new = 1/np.dot(y_i, 1/(VaPr_i*AcCo_i))
@@ -606,7 +683,12 @@ class Equilibria:
 
             # NOTE: init model
             # init NRTL model
-            activity = Activity()
+            # activity = Activity(
+            #     datasource=self._datasource,
+            #     equationsource=self._equationsource
+            # )
+
+            activity = self.Activity_
 
             # activity inputs
             activity_inputs = kwargs.get('activity_inputs', {})
@@ -899,7 +981,12 @@ class Equilibria:
 
             # NOTE: init model
             # init NRTL model
-            activity = Activity()
+            # activity = Activity(
+            #     datasource=self._datasource,
+            #     equationsource=self._equationsource
+            # )
+
+            activity = self.Activity_
 
             # activity inputs
             activity_inputs = kwargs.get('activity_inputs', {})
@@ -1786,7 +1873,12 @@ class Equilibria:
 
             # SECTION: activity model
             # init
-            activity = Activity()
+            # activity = Activity(
+            #     datasource=self._datasource,
+            #     equationsource=self._equationsource
+            # )
+
+            activity = self.Activity_
 
             # SECTION: optimization
             # NOTE: guess values

@@ -28,8 +28,9 @@ class VLE(Equilibria):
         self.__equationsource = {
         } if model_source is None else model_source['equationsource']
 
-        # init class
-        Equilibria.__init__(self, components)
+        # NOTE: init class
+
+        Equilibria.__init__(self, components, model_source)
 
     @property
     def model_source(self) -> Dict:
@@ -163,6 +164,8 @@ class VLE(Equilibria):
             Message to display during the calculation. Default is None.
         **kwargs : dict, optional
             Additional parameters for the model.
+            - activity_inputs : dict, model parameters.
+            - activity_coefficients : dict, activity coefficients for each component.
 
         Returns
         -------
@@ -191,6 +194,30 @@ class VLE(Equilibria):
         - The default equilibrium model is 'raoult', and the default activity model is 'NRTL'.
         - The function will return the bubble pressure in Pascals.
         - The activity coefficient for each component can be directly defined in the activity_inputs dictionary.
+
+
+        For each component, the model parameters can be provided for activity models like NRTL or UNIQUAC:
+
+        ```python
+        # activity inputs
+        activity_inputs = {
+            'alpha': alpha,
+            'a_ij': a_ij,
+            'b_ij': b_ij,
+            'c_ij': c_ij,
+            'd_ij': d_ij
+        }
+        ```
+
+        Or the activity coefficients can be provided directly:
+
+        # calculated activity coefficients (for bubble-pressure calculation)
+        ```python
+        activity_coefficients = {
+            'benzene': 1.0,
+            'toluene': 1.1
+        }
+        ```
         '''
         try:
             # ! Start timing
@@ -358,6 +385,8 @@ class VLE(Equilibria):
             Message to display during the calculation. Default is None.
         **kwargs : dict, optional
             Additional parameters for the model.
+            - activity_inputs : dict, model parameters.
+            - activity_coefficients : dict, activity coefficients for each component.
 
         Returns
         -------
