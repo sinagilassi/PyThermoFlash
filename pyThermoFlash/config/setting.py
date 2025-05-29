@@ -1,5 +1,5 @@
 # version
-__version__ = "0.1.3"
+__version__ = "0.1.4"
 # author
 __author__ = "Sina Gilassi"
 # email

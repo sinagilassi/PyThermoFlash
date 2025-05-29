@@ -8,7 +8,7 @@ with codecs.open(os.path.join(here, "README.md"), encoding="utf-8") as fh:
     long_description = "\n" + fh.read()
 
 APP_NAME = 'PyThermoFlash'
-VERSION = '0.1.3'
+VERSION = '0.1.4'
 AUTHOR = 'Sina Gilassi'
 EMAIL = '<sina.gilassi@gmail.com>'
 DESCRIPTION = "PyThermoFlash is a Python package for performing thermodynamic flash calculations and property estimations for various fluid systems."
