@@ -56,18 +56,19 @@ class Activity:
             # SECTION: check src
             # extract activity model inputs
             activity_inputs = kwargs.get('activity_inputs', None)
+            nrtl_datasource = kwargs.get('NRTL', None)
 
             # check
             if activity_inputs is None:
                 # ! check nrtl inputs in datasource
-                activity_inputs = self.datasource.get('NRTL', None)
+                activity_inputs = nrtl_datasource
 
             # check if activity_inputs is None
             if activity_inputs is None:
                 raise ValueError(
                     "No valid source provided for activity model (NRTL) inputs.")
 
-            # NOTE: check if activity_inputs is a dictionary
+            # SECTION: check if activity_inputs is a dictionary
             if activity_inputs is not None:
                 # check if activity_inputs is a dictionary
                 if not isinstance(activity_inputs, dict):
@@ -78,28 +79,36 @@ class Activity:
                     raise ValueError(
                         "activity_inputs cannot be empty.")
 
+                # NOTE: update activity_inputs with nrtl_datasource
+                if nrtl_datasource is not None:
+                    activity_inputs.update(nrtl_datasource)
+
+            # SECTION: extract activity model inputs
             # NOTE: method 1
-            # Δg_ij, interaction energy parameter
-            dg_ij_src = activity_inputs.get(
-                'dg_ij', None) or activity_inputs.get('dg', None)
+            # ! Δg_ij, interaction energy parameter
+            dg_ij_src = activity_inputs.get('dg_ij', None)
+            if dg_ij_src is None:
+                dg_ij_src = activity_inputs.get('dg', None)
 
             # NOTE: method 2
-            # constants a, b, and c
-            a_ij_src = activity_inputs.get(
-                'a_ij', None) or activity_inputs.get('a', None)
-            b_ij_src = activity_inputs.get(
-                'b_ij', None) or activity_inputs.get('b', None)
-            c_ij_src = activity_inputs.get(
-                'c_ij', None) or activity_inputs.get('c', None)
-            d_ij_src = activity_inputs.get(
-                'd_ij', None) or activity_inputs.get('d', None)
+            # ! constants a, b, c, and d
+            a_ij_src = activity_inputs.get('a_ij', None)
+            if a_ij_src is None:
+                a_ij_src = activity_inputs.get('a', None)
+            b_ij_src = activity_inputs.get('b_ij', None)
+            if b_ij_src is None:
+                b_ij_src = activity_inputs.get('b', None)
+            c_ij_src = activity_inputs.get('c_ij', None)
+            if c_ij_src is None:
+                c_ij_src = activity_inputs.get('c', None)
+            d_ij_src = activity_inputs.get('d_ij', None)
+            if d_ij_src is None:
+                d_ij_src = activity_inputs.get('d', None)
 
             # NOTE: α_ij, non-randomness parameter
-            alpha_ij_src = activity_inputs.get(
-                'alpha_ij', None) or activity_inputs.get('alpha', None)
+            alpha_ij_src = activity_inputs.get('alpha_ij', None)
             if alpha_ij_src is None:
-                raise ValueError(
-                    "No valid source provided for non-randomness parameter (α_ij).")
+                alpha_ij_src = activity_inputs.get('alpha', None)
 
             # SECTION: init NRTL model
             # activity model
@@ -196,16 +205,19 @@ class Activity:
 
             # NOTE: calculate the binary interaction parameter matrix (tau_ij)
             if tau_ij_cal_method == 1:
+                # check
                 tau_ij, _ = activity_nrtl.cal_tau_ij_M1(
                     temperature=temperature,
-                    dg_ij=dg_ij)
+                    dg_ij=dg_ij
+                )
             elif tau_ij_cal_method == 2:
                 tau_ij, _ = activity_nrtl.cal_tau_ij_M2(
                     temperature=temperature,
                     a_ij=a_ij,
                     b_ij=b_ij,
                     c_ij=c_ij,
-                    d_ij=d_ij)
+                    d_ij=d_ij
+                )
             else:
                 raise ValueError(
                     "Invalid method for calculating tau_ij. Must be 1 or 2.")
@@ -261,11 +273,12 @@ class Activity:
             # SECTION: check src
             # extract activity model inputs
             activity_inputs = kwargs.get('activity_inputs', None)
+            uniquac_datasource = kwargs.get('UNIQUAC', None)
 
             # check
             if activity_inputs is None:
                 # ! check nrtl inputs in datasource
-                activity_inputs = self.datasource.get('UNIQUAC', None)
+                activity_inputs = uniquac_datasource
 
             # check if activity_inputs is None
             if activity_inputs is None:
@@ -283,25 +296,37 @@ class Activity:
                     raise ValueError(
                         "activity_inputs cannot be empty.")
 
+            # NOTE: update activity_inputs with uniquac_datasource
+            if uniquac_datasource is not None:
+                activity_inputs.update(uniquac_datasource)
+
             # NOTE: method 1
             # Δg_ij, interaction energy parameter
-            dU_ij_src = activity_inputs.get(
-                'dU_ij', None) or activity_inputs.get('dU', None)
+            dU_ij_src = activity_inputs.get('dU_ij', None)
+            if dU_ij_src is None:
+                dU_ij_src = activity_inputs.get('dU', None)
 
             # NOTE: method 2
-            # constants a, b, and c
-            a_ij_src = activity_inputs.get(
-                'a_ij', None) or activity_inputs.get('a', None)
-            b_ij_src = activity_inputs.get(
-                'b_ij', None) or activity_inputs.get('b', None)
-            c_ij_src = activity_inputs.get(
-                'c_ij', None) or activity_inputs.get('c', None)
-            d_ij_src = activity_inputs.get(
-                'd_ij', None) or activity_inputs.get('d', None)
+            # constants a, b, c, and d
+            a_ij_src = activity_inputs.get('a_ij', None)
+            if a_ij_src is None:
+                a_ij_src = activity_inputs.get('a', None)
+            b_ij_src = activity_inputs.get('b_ij', None)
+            if b_ij_src is None:
+                b_ij_src = activity_inputs.get('b', None)
+            c_ij_src = activity_inputs.get('c_ij', None)
+            if c_ij_src is None:
+                c_ij_src = activity_inputs.get('c', None)
+            d_ij_src = activity_inputs.get('d_ij', None)
+            if d_ij_src is None:
+                d_ij_src = activity_inputs.get('d', None)
 
             # NOTE: r_i, relative van der Waals volume of component i
-            r_i_src = activity_inputs.get(
-                'r_i', None) or activity_inputs.get('r', None)
+            r_i_src = activity_inputs.get('r_i', None)
+            if r_i_src is None:
+                r_i_src = activity_inputs.get('r', None)
+
+            # final check if r_i is provided
             if r_i_src is None:
                 raise ValueError("No valid source provided for r_i.")
 
@@ -315,8 +340,11 @@ class Activity:
                     "Invalid source for r_i. Must be a list or numpy array.")
 
             # NOTE: q_i, relative van der Waals area of component i
-            q_i_src = activity_inputs.get(
-                'q_i', None) or activity_inputs.get('q', None)
+            q_i_src = activity_inputs.get('q_i', None)
+            if q_i_src is None:
+                q_i_src = activity_inputs.get('q', None)
+
+            # final check if q_i is provided
             if q_i_src is None:
                 raise ValueError("No valid source provided for q_i.")
 
