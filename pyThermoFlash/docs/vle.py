@@ -15,10 +15,12 @@ class VLE(Equilibria):
     Model for vapor-liquid equilibrium (VLE) calculations for multi-component systems using the Raoult's law, modified Raoult's law and more.
     '''
 
-    def __init__(self,
-                 components: List[str],
-                 model_source: Optional[Dict] = None,
-                 **kwargs):
+    def __init__(
+        self,
+        components: List[str],
+        model_source: Optional[Dict] = None,
+        **kwargs
+    ):
         '''
         Initialize the Partition class.
         '''
@@ -29,7 +31,6 @@ class VLE(Equilibria):
         } if model_source is None else model_source['equationsource']
 
         # NOTE: init class
-
         Equilibria.__init__(self, components, model_source)
 
     @property
@@ -77,10 +78,12 @@ class VLE(Equilibria):
             return {}
         return self.__equationsource
 
-    def __set_models(self,
-                     equilibrium_model: str,
-                     fugacity_model: Optional[str],
-                     activity_model: Optional[str]):
+    def __set_models(
+        self,
+        equilibrium_model: str,
+        fugacity_model: Optional[str],
+        activity_model: Optional[str]
+    ):
         '''
         Set the models for the calculation.
 
@@ -130,19 +133,21 @@ class VLE(Equilibria):
             raise Exception(
                 f"Error in setting models: {e}")
 
-    def bubble_pressure(self,
-                        inputs: Dict[str, Any],
-                        equilibrium_model: Literal[
-                            'raoult', 'modified-raoult'
-                        ] = 'raoult',
-                        fugacity_model: Optional[Literal[
-                            'vdW', 'PR', 'RK', 'SRK'
-                        ]] = None,
-                        activity_model: Optional[Literal[
-                            'NRTL', 'UNIQUAC'
-                        ]] = None,
-                        message: Optional[str] = None,
-                        **kwargs):
+    def bubble_pressure(
+        self,
+        inputs: Dict[str, Any],
+        equilibrium_model: Literal[
+            'raoult', 'modified-raoult'
+        ] = 'raoult',
+        fugacity_model: Optional[Literal[
+            'vdW', 'PR', 'RK', 'SRK'
+        ]] = None,
+        activity_model: Optional[Literal[
+            'NRTL', 'UNIQUAC'
+        ]] = None,
+        message: Optional[str] = None,
+        **kwargs
+    ):
         '''
         The Bubble-Pressure (BP) calculation determines the pressure at which the first bubble of vapor forms when a liquid mixture is heated at a constant temperature. It is used to find the pressure for a given temperature at which the liquid will begin to vaporize.
 
@@ -351,19 +356,21 @@ class VLE(Equilibria):
             raise ValueError(
                 f"Error in bubble_pressure calculation: {e}")
 
-    def dew_pressure(self,
-                     inputs: Dict[str, Any],
-                     equilibrium_model: Literal[
-                         'raoult', 'modified-raoult'
-                     ] = 'raoult',
-                     fugacity_model: Optional[Literal[
-                         'vdW', 'PR', 'RK', 'SRK'
-                     ]] = None,
-                     activity_model: Optional[Literal[
-                         'NRTL', 'UNIQUAC'
-                     ]] = None,
-                     message: Optional[str] = None,
-                     **kwargs):
+    def dew_pressure(
+        self,
+        inputs: Dict[str, Any],
+        equilibrium_model: Literal[
+            'raoult', 'modified-raoult'
+        ] = 'raoult',
+        fugacity_model: Optional[Literal[
+            'vdW', 'PR', 'RK', 'SRK'
+        ]] = None,
+        activity_model: Optional[Literal[
+            'NRTL', 'UNIQUAC'
+        ]] = None,
+        message: Optional[str] = None,
+        **kwargs
+    ):
         '''
         The dew-point pressure (DP) calculation determines the pressure at which the first drop of liquid condenses when a vapor mixture is cooled at a constant temperature. It is used to find the pressure at which vapor will begin to condense.
 
@@ -550,22 +557,24 @@ class VLE(Equilibria):
             raise ValueError(
                 f"Error in bubble_pressure calculation: {e}")
 
-    def bubble_temperature(self,
-                           inputs: Dict[str, Any],
-                           equilibrium_model: Literal[
-                               'raoult', 'modified-raoult'
-                           ] = 'raoult',
-                           fugacity_model: Literal[
-                               'vdW', 'PR', 'RK', 'SRK'
-                           ] = 'SRK',
-                           activity_model: Literal[
-                               'NRTL', 'UNIQUAC']
-                           = 'NRTL',
-                           solver_method: Literal[
-                               'root', 'least-squares', 'fsolve'
-                           ] = 'root',
-                           message: Optional[str] = None,
-                           **kwargs):
+    def bubble_temperature(
+        self,
+        inputs: Dict[str, Any],
+        equilibrium_model: Literal[
+            'raoult', 'modified-raoult'
+        ] = 'raoult',
+        fugacity_model: Literal[
+            'vdW', 'PR', 'RK', 'SRK'
+        ] = 'SRK',
+        activity_model: Literal[
+            'NRTL', 'UNIQUAC']
+        = 'NRTL',
+        solver_method: Literal[
+            'root', 'least-squares', 'fsolve'
+        ] = 'root',
+        message: Optional[str] = None,
+            **kwargs
+    ):
         '''
         The `bubble-point temperature` (BT) calculation determines the temperature at which the first bubble of vapor forms when a liquid mixture is heated at a constant pressure. It helps identify the temperature at which the liquid will start vaporizing.
 
@@ -753,22 +762,24 @@ class VLE(Equilibria):
             raise Exception(
                 f"Error in bubble_temperature calculation: {e}")
 
-    def dew_temperature(self,
-                        inputs: Dict[str, Any],
-                        equilibrium_model: Literal[
-                            'raoult', 'modified-raoult'
-                        ] = 'raoult',
-                        fugacity_model: Literal[
-                            'vdW', 'PR', 'RK', 'SRK'
-                        ] = 'SRK',
-                        activity_model: Literal[
-                            'NRTL', 'UNIQUAC']
-                        = 'NRTL',
-                        solver_method: Literal[
-                            'root', 'least-squares', 'fsolve'
-                        ] = 'least-squares',
-                        message: Optional[str] = None,
-                        **kwargs):
+    def dew_temperature(
+        self,
+        inputs: Dict[str, Any],
+        equilibrium_model: Literal[
+            'raoult', 'modified-raoult'
+        ] = 'raoult',
+        fugacity_model: Literal[
+            'vdW', 'PR', 'RK', 'SRK'
+        ] = 'SRK',
+        activity_model: Literal[
+            'NRTL', 'UNIQUAC']
+        = 'NRTL',
+        solver_method: Literal[
+            'root', 'least-squares', 'fsolve'
+        ] = 'least-squares',
+        message: Optional[str] = None,
+            **kwargs
+    ):
         '''
         The `dew-point temperature` (DT) calculation determines the temperature at which the first drop of liquid condenses when a vapor mixture is cooled at a constant pressure. It identifies the temperature at which vapor will start to condense.
 
@@ -957,23 +968,25 @@ class VLE(Equilibria):
             raise Exception(
                 f"Error in dew_temperature calculation: {e}")
 
-    def flash_isothermal(self,
-                         inputs: Dict[str, Any],
-                         equilibrium_model: Literal[
-                             'raoult', 'modified-raoult'
-                         ] = 'raoult',
-                         fugacity_model: Literal[
-                             'vdW', 'PR', 'RK', 'SRK'
-                         ] = 'SRK',
-                         activity_model: Literal[
-                             'NRTL', 'UNIQUAC']
-                         = 'NRTL',
-                         solver_method: Literal[
-                             'least_squares', 'minimize'
-                         ] = 'least_squares',
-                         flash_checker: bool = False,
-                         message: Optional[str] = None,
-                         **kwargs):
+    def flash_isothermal(
+        self,
+        inputs: Dict[str, Any],
+        equilibrium_model: Literal[
+            'raoult', 'modified-raoult'
+        ] = 'raoult',
+        fugacity_model: Literal[
+            'vdW', 'PR', 'RK', 'SRK'
+        ] = 'SRK',
+        activity_model: Literal[
+            'NRTL', 'UNIQUAC']
+        = 'NRTL',
+        solver_method: Literal[
+            'least_squares', 'minimize'
+        ] = 'least_squares',
+        flash_checker: bool = False,
+        message: Optional[str] = None,
+            **kwargs
+    ):
         '''
         The `isothermal-flash` (IFL) calculation This calculation determines the vapor and liquid phase compositions and amounts at a specified temperature and pressure. The system is "flashed" isothermally, meaning the temperature is kept constant while the phase behavior is calculated for a mixture.
 
