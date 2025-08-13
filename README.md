@@ -2,7 +2,11 @@
 
 ![PyThermoFlash](https://drive.google.com/uc?export=view&id=1lFADXEDZMwfsLvWdBhZgAa3AeCmF419W)
 
-![Downloads](https://img.shields.io/pypi/dm/PyThermoFlash) ![PyPI](https://img.shields.io/pypi/v/PyThermoFlash) ![Python Version](https://img.shields.io/pypi/pyversions/PyThermoFlash.svg) ![License](https://img.shields.io/pypi/l/PyThermoFlash) ![Read the Docs](https://img.shields.io/readthedocs/PyThermoFlash)
+[![PyPI Downloads](https://static.pepy.tech/badge/pythermoflash/month)](https://pepy.tech/projects/pythermoflash)
+![PyPI](https://img.shields.io/pypi/v/PyThermoFlash)
+![Python Version](https://img.shields.io/pypi/pyversions/PyThermoFlash.svg)
+![License](https://img.shields.io/pypi/l/PyThermoFlash)
+![Read the Docs](https://img.shields.io/readthedocs/PyThermoFlash)
 
 PyThermoFlash is a powerful and user-friendly computational tool tailored for engineers, researchers, and scientists working with thermodynamic systems. It specializes in performing bubble-point, dew-point, and flash calculations, which are essential for determining the equilibrium state of mixtures under specified conditions. With support for various thermodynamic models, PyThermoFlash ensures accurate predictions of phase behavior and properties for complex fluid systems.
 
