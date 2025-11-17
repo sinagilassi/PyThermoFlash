@@ -1,5 +1,4 @@
 # import libs
-from rich import print
 import os
 import pyThermoDB as ptdb
 import pyThermoLinkDB as ptdblink
@@ -10,8 +9,8 @@ from pyThermoLinkDB import (
 )
 from pyThermoLinkDB.models import ComponentModelSource, ModelSource
 from pythermodb_settings.models import Component, Pressure, Temperature
-from pyThermoDB import ComponentThermoDB
-from pyThermoDB import build_component_thermodb_from_reference
+from pyThermoDB import build_component_thermodb_from_reference, ComponentThermoDB
+from rich import print
 # thermo flash
 import pyThermoFlash as ptf
 
