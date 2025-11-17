@@ -13,6 +13,7 @@ benzene:
     AcFa: AcFa
   EQUATIONS:
     vapor-pressure: VaPr
+    CUSTOM-REF-1::vapor-pressure: VaPr
 toluene:
   DATA:
     Pc: Pc
@@ -20,6 +21,7 @@ toluene:
     AcFa: AcFa
   EQUATIONS:
     vapor-pressure: VaPr
+    CUSTOM-REF-1::vapor-pressure: VaPr
 water:
   DATA:
     Pc: Pc
@@ -27,6 +29,7 @@ water:
     AcFa: AcFa
   EQUATIONS:
     vapor-pressure: VaPr
+    CUSTOM-REF-1::vapor-pressure: VaPr
 ethanol:
   DATA:
     Pc: Pc
@@ -34,3 +37,4 @@ ethanol:
     AcFa: AcFa
   EQUATIONS:
     vapor-pressure: VaPr
+    CUSTOM-REF-1::vapor-pressure: VaPr

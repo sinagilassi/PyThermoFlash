@@ -1,5 +1,6 @@
 # import libs
 import os
+from typing import List
 import pyThermoDB as ptdb
 import pyThermoLinkDB as ptdblink
 from pyThermoLinkDB import (
@@ -13,6 +14,8 @@ from pyThermoDB import build_component_thermodb_from_reference, ComponentThermoD
 from rich import print
 # thermo flash
 import pyThermoFlash as ptf
+from .reference_content_0 import REFERENCE_CONTENT
+from .model_source import datasource, equationsource
 
 # version
 print(ptf.__version__)
@@ -22,36 +25,82 @@ print(ptdblink.__version__)
 # SECTION: examples
 # !Example 10-1, Page 438, Fundamental of Chemical Engineering Thermodynamics, Kevin D. Dahm
 
-# =======================================
-# #️⃣ BUILD COMPONENT THERMODB
-# =======================================
-# NOTE: parent directory
-parent_dir = os.path.dirname(os.path.abspath(__file__))
-print(parent_dir)
+# # =======================================
+# # #️⃣ CONFIGURATION
+# # =======================================
+# # NOTE: parent directory
+# parent_dir = os.path.dirname(os.path.abspath(__file__))
+# print(parent_dir)
 
-# NOTE: components
+# # =======================================
+# # #️⃣ BUILD COMPONENT
+# # =======================================
+# # NOTE: components (normal state)
+# # benzene
+# benzene = Component(
+#     name='benzene',
+#     formula='C6H6',
+#     state='l'
+# )
 
+# # toluene
+# toluene = Component(
+#     name='toluene',
+#     formula='C7H8',
+#     state='l'
+# )
 
-# =======================================
-# #️⃣ THERMODB LINK CONFIGURATION
-# =======================================
-# init thermodb hub
-thub1 = ptdblink.init()
-print(type(thub1))
+# # =======================================
+# # #️⃣ BUILD COMPONENT THERMODB
+# # =======================================
+# # NOTE: ignore state properties
+# ignore_state_props = ['MW', 'VaPr', 'Cp_IG']
 
-# add component thermodb
-thub1.add_thermodb('benzene', C6H6)
-thub1.add_thermodb('toluene', C7H8)
+# # SECTION: build component thermodb
+# # ! benzene
+# benzene_thermodb_component_: ComponentThermoDB | None = build_component_thermodb_from_reference(
+#     component_name=benzene.name,
+#     component_formula=benzene.formula,
+#     component_state=benzene.state,
+#     reference_content=REFERENCE_CONTENT,
+#     ignore_state_props=ignore_state_props,
+# )
+# # check
+# if benzene_thermodb_component_ is None:
+#     raise ValueError("Benzene ThermoDB component build failed.")
 
-# * add thermodb rule
-thermodb_config_file = os.path.join(
-    os.getcwd(), 'tests', 'thermodb_config_link.yml')
+# # ! toluene
+# toluene_thermodb_component_: ComponentThermoDB | None = build_component_thermodb_from_reference(
+#     component_name=toluene.name,
+#     component_formula=toluene.formula,
+#     component_state=toluene.state,
+#     reference_content=REFERENCE_CONTENT,
+#     ignore_state_props=ignore_state_props,
+# )
+# # check
+# if toluene_thermodb_component_ is None:
+#     raise ValueError("Toluene ThermoDB component build failed.")
 
-# all components
-thub1.config_thermodb_rule(thermodb_config_file)
+# # SECTION: build model source
+# # NOTE: with partially matched
+# model_source_list: List[ComponentModelSource] = build_components_model_source(
+#     components_thermodb=[
+#         benzene_thermodb_component_,
+#         toluene_thermodb_component_
+#     ]
+# )
 
-# build datasource & equationsource
-datasource, equationsource = thub1.build()
+# # NOTE: build model source
+# model_source_: ModelSource = build_model_source(
+#     source=model_source_list
+# )
+
+# # =======================================
+# # #️⃣ THERMODB LINK CONFIGURATION
+# # =======================================
+# # NOTE: build datasource & equationsource
+# datasource = model_source_.data_source
+# equationsource = model_source_.equation_source
 
 # =======================================
 # #️⃣ THERMOFLASH CALCULATION

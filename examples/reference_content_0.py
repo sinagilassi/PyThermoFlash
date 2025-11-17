@@ -72,4 +72,51 @@ REFERENCES:
             - [14,'benzene','C6H6','l',83.107,-6486.2,-9.2194,6.98E-06,2,278.68,4.76E+03,562.05,4.88E+06,1]
             - [15,'nitrogen','N2','g',58.282,-1084.1,-8.3144,4.41E-02,1,63.15,1.25E+04,126.2,3.39E+06,1]
             - [16,'ethane','C2H6','g',51.857,-2598.7,-5.1283,1.49E-05,2,90.35,1.13E+00,305.32,4.85E+06,1]
+        ideal-gas-heat-capacity:
+            TABLE-ID: 1
+            DESCRIPTION:
+              This table provides the heat capacity at constant pressure of ideal gas (Cp_IG) in J/mol.K as a function of temperature (T) in K.
+            EQUATIONS:
+              EQ-1:
+                BODY:
+                  - res['ideal-gas-heat-capacity | Cp_IG | J/mol.K'] = (parms['a0 | a0 | 1'] + parms['a1 | a1 | 1E3']*args['temperature | T | K'] + parms['a2 | a2 | 1E5']*(args['temperature | T | K']**2) + parms['a3 | a3 | 1E8']*(args['temperature | T | K']**3) + parms['a4 | a4 | 1E11']*(args['temperature | T | K']**4))*parms['Universal-Gas-Constant | R | J/mol.K']
+                BODY-INTEGRAL:
+                    - A1 = parms['a0 | a0 | 1']*args['temperature | T1 | K']
+                    - B1 = (parms['a1 | a1 | 1E3']/2)*(args['temperature | T1 | K']**2)
+                    - C1 = (parms['a2 | a2 | 1E5']/3)*(args['temperature | T1 | K']**3)
+                    - D1 = (parms['a3 | a3 | 1E8']/4)*(args['temperature | T1 | K']**4)
+                    - E1 = (parms['a4 | a4 | 1E11']/5)*(args['temperature | T1 | K']**5)
+                    - res1 =  A1 + B1 + C1 + D1 + E1
+                    - A2 = parms['a0 | a0 | 1']*args['temperature | T2 | K']
+                    - B2 = (parms['a1 | a1 | 1E3']/2)*(args['temperature | T2 | K']**2)
+                    - C2 = (parms['a2 | a2 | 1E5']/3)*(args['temperature | T2 | K']**3)
+                    - D2 = (parms['a3 | a3 | 1E8']/4)*(args['temperature | T2 | K']**4)
+                    - E2 = (parms['a4 | a4 | 1E11']/5)*(args['temperature | T2 | K']**5)
+                    - res2 =  A2 + B2 + C2 + D2 + E2
+                    - res = parms['Universal-Gas-Constant | R | J/mol.K']*(res2 - res1)
+                BODY-FIRST-DERIVATIVE:
+                    - res = parms['Universal-Gas-Constant | R | J/mol.K']*(parms['a1 | a1 | 1E3'] + 2*parms['a2 | a2 | 1E5']*args['temperature | T | K'] + 3*parms['3 | a3 | 1E8']*(args['temperature | T | K']**2) + 4*parms['a4 | a4 | 1E11']*(args['temperature | T | K']**3))
+                BODY-SECOND-DERIVATIVE:
+                    - res = parms['Universal-Gas-Constant | R | J/mol.K']*(2*parms['a2 | a2 | 1E5'] + 6*parms['3 | a3 | 1E8']*args['temperature | T | K'] + 12*parms['a4 | a4 | 1E11']*(args['temperature | T | K']**2))
+            STRUCTURE:
+              COLUMNS: [No.,Name,Formula,State,a0,a1,a2,a3,a4,R,Eq]
+              SYMBOL: [None,None,None,None,a0,a1,a2,a3,a4,R,Cp_IG]
+              UNIT: [None,None,None,None,1,1E3,1E5,1E8,1E11,1,J/mol.K]
+            VALUES:
+              - [1,'carbon dioxide','CO2','g',3.259,1.356,1.502,-2.374,1.056,8.314,1]
+              - [2,'carbon monoxide','CO','g',3.912,-3.913,1.182,-1.302,0.515,8.314,1]
+              - [3,'hydrogen','H2','g',2.883,3.681,-0.772,0.692,-0.213,8.314,1]
+              - [4,'methanol','CH3OH','g',4.714,-6.986,4.211,-4.443,1.535,8.314,1]
+              - [5,'water','H2O','g',4.395,-4.186,1.405,-1.564,0.632,8.314,1]
+              - [6,'acetylene','C2H2','g',2.410,10.926,-0.255,-0.790,0.524,8.314,1]
+              - [7,'ethanol','C2H6O','l',4.178,4.427,5.660,6.651,2.487,8.314,1]
+              - [8,'n-butane','C4H10','g',5.547,5.536,8.057,-10.571,4.134,8.314,1]
+              - [9,'methane','CH4','g',4.568,-8.975,3.631,-3.407,1.091,8.314,1]
+              - [10,'propane','C3H8','g',3.847,5.131,6.011,-7.893,3.079,8.314,1]
+              - [11,'1-butene','C4H8','g',4.389,7.984,6.143,-8.197,3.165,8.314,1]
+              - [12,'1,3-Butadiene','C4H6','g',3.607,5.085,8.253,-12.371,5.321,8.314,1]
+              - [13,'ethylene','C2H4','g',4.221,-8.782,5.795,-6.729,2.511,8.314,1]
+              - [14,'benzene','C6H6','l',3.551,-6.184,14.365,-19.807,8.234,8.314,1]
+              - [15,'nitrogen','N2','g',3.539,-0.261,0.007,0.157,-0.099,8.314,1]
+              - [16,'ethane','C2H6','g',4.178,-4.427,5.660,-6.651,2.487,8.314,1]
 """

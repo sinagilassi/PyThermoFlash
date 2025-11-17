@@ -14,11 +14,13 @@ class Equilibria:
     Phase Equilibria Calculations
     '''
 
-    def __init__(self,
-                 components: List[str],
-                 datasource: Optional[Dict] = None,
-                 equationsource: Optional[Dict] = None,
-                 **kwargs):
+    def __init__(
+        self,
+        components: List[str],
+        datasource: Optional[Dict] = None,
+        equationsource: Optional[Dict] = None,
+        **kwargs
+    ):
         '''Initialize the Equilibria class.'''
         # set
         components_ = [component.strip() for component in components]
@@ -49,9 +51,10 @@ class Equilibria:
         '''Get the number of components in the system.'''
         return self.__comp_num
 
-    def __mole_fraction_comp(self,
-                             z_i: List[float] | np.ndarray
-                             ) -> Dict[str, float]:
+    def __mole_fraction_comp(
+        self,
+            z_i: List[float] | np.ndarray
+    ) -> Dict[str, float]:
         '''
         Convert mole fraction list to dictionary.
 
@@ -73,13 +76,14 @@ class Equilibria:
         return {str(self.components[i]): z_i[i]
                 for i in range(self.component_num)}
 
-    def __activity_coefficient(self,
-                               activity_model: Literal['NRTL', 'UNIQUAC'],
-                               activity: Activity,
-                               x_i_comp: Dict[str, float],
-                               T: float,
-                               **kwargs
-                               ) -> np.ndarray:
+    def __activity_coefficient(
+        self,
+        activity_model: Literal['NRTL', 'UNIQUAC'],
+        activity: Activity,
+        x_i_comp: Dict[str, float],
+        T: float,
+        **kwargs
+    ) -> np.ndarray:
         '''
         Calculate activity coefficient using NRTL or UNIQUAC model.
 
@@ -130,13 +134,14 @@ class Equilibria:
         except Exception as e:
             raise Exception(f'activity coefficient calculation failed! {e}')
 
-    def __check_activity_coefficients(self,
-                                      activity_model: Literal['NRTL', 'UNIQUAC'],
-                                      activity: Activity,
-                                      z_i_comp: Dict[str, float],
-                                      T_value: float,
-                                      **kwargs
-                                      ) -> np.ndarray:
+    def __check_activity_coefficients(
+        self,
+        activity_model: Literal['NRTL', 'UNIQUAC'],
+        activity: Activity,
+        z_i_comp: Dict[str, float],
+        T_value: float,
+        **kwargs
+    ) -> np.ndarray:
         '''
         Check if activity coefficients are provided by the user.
 
@@ -174,10 +179,11 @@ class Equilibria:
         except Exception as e:
             raise Exception(f'check activity coefficients failed! {e}')
 
-    def set_calculated_activity_coefficient(self,
-                                            AcCo_i_cal:
-                                            Dict[str, float] | np.ndarray | list,
-                                            ) -> np.ndarray:
+    def set_calculated_activity_coefficient(
+        self,
+        AcCo_i_cal:
+        Dict[str, float] | np.ndarray | list,
+    ) -> np.ndarray:
         """
         Set calculated activity coefficients, provided by the user.
 
@@ -1691,11 +1697,13 @@ class Equilibria:
         # res
         return DePr
 
-    def _flash_checker(self,
-                       z_i: List[float],
-                       Pf: float,
-                       Tf: float,
-                       VaPr_comp: Dict) -> bool:
+    def _flash_checker(
+        self,
+        z_i: List[float],
+        Pf: float,
+        Tf: float,
+        VaPr_comp: Dict
+    ) -> bool:
         '''
         Check if the flash occurs at the given pressure and temperature according to the bubble and dew pressures of the mixture; according to Raoult's law.
 
@@ -1972,8 +1980,9 @@ class Equilibria:
 
                 # NOTE: Bounds
                 # individual bounds (min, max)
-                bounds = [(eps, 1.0 - eps)] + [(eps, 1.0)
-                                               for _ in range(N - 1)]
+                bounds = [
+                    (eps, 1.0 - eps)] + [(eps, 1.0) for _ in range(N - 1)
+                                         ]
 
                 # V/F
                 _res = optimize.minimize(
@@ -2446,20 +2455,22 @@ class Equilibria:
         # Objective: minimize sum of squared residuals
         return np.sum(residuals**2)
 
-    def flash_constraints(self,
-                          z: np.ndarray,
-                          K: np.ndarray,
-                          T: float,
-                          P: float,
-                          P_sat: np.ndarray,
-                          equilibrium_model: Literal[
-                              'raoult', 'modified-raoult'
-                          ] = 'raoult',
-                          activity_model: Literal[
-                              'NRTL', 'UNIQUAC'
-                          ] = 'NRTL',
-                          activity: Optional[Activity] = None,
-                          **kwargs):
+    def flash_constraints(
+        self,
+        z: np.ndarray,
+        K: np.ndarray,
+        T: float,
+        P: float,
+        P_sat: np.ndarray,
+        equilibrium_model: Literal[
+            'raoult', 'modified-raoult'
+        ] = 'raoult',
+        activity_model: Literal[
+            'NRTL', 'UNIQUAC'
+        ] = 'NRTL',
+        activity: Optional[Activity] = None,
+        **kwargs
+    ):
         '''
         Constraints for the flash calculation.
 
@@ -2538,14 +2549,15 @@ class Equilibria:
             {'type': 'eq', 'fun': vapor_sum},
         ]
 
-    def xy_flash(self,
-                 V_F_ratio: float,
-                 z_i: np.ndarray,
-                 K_i: np.ndarray,
-                 AcCo_i: Optional[
-                     np.ndarray
-                 ] = None
-                 ) -> Dict[str, np.ndarray]:
+    def xy_flash(
+        self,
+        V_F_ratio: float,
+        z_i: np.ndarray,
+        K_i: np.ndarray,
+        AcCo_i: Optional[
+            np.ndarray
+        ] = None
+    ) -> Dict[str, np.ndarray]:
         '''
         Calculate liquid/vapor mole fraction (xi, yi) using V/F ratio and K ratio.
 

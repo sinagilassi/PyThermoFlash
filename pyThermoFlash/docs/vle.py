@@ -1099,8 +1099,9 @@ class VLE(Equilibria):
             components = self.components
 
             # mole fractions based on components id
-            mole_fractions = [mole_fractions[component]
-                              for component in components]
+            mole_fractions = [
+                mole_fractions[component] for component in components
+            ]
 
             # SECTION: extract source
             Source_ = Source(self.model_source)
