@@ -1218,3 +1218,189 @@ class VLE(Equilibria):
         except Exception as e:
             raise Exception(
                 f"Error in flash_isothermal calculation: {e}")
+
+    def is_flashable(
+        self,
+        inputs: Dict[str, Any],
+        equilibrium_model: Literal[
+            'raoult', 'modified-raoult'
+        ] = 'raoult',
+        message: Optional[str] = None,
+        **kwargs
+    ):
+        '''
+        Check if the mixture is flashable at the given pressure and temperature based on Raoult's law.
+
+        Parameters
+        ----------
+        inputs : dict
+            Dictionary containing the input parameters for the calculation.
+            - mole_fraction : dict
+                Dictionary of component names and their respective mole fractions.
+            - temperature : float
+                Flash temperature (in Kelvin, Celsius, Fahrenheit).
+            - pressure : float
+                Flash pressure (in Pascal, bar, atm).
+        equilibrium_model : str, optional
+            the equilibrium model to use for the calculation. Default is 'raoult'.
+        message : str, optional
+            Message to display during the calculation. Default is None.
+        **kwargs : dict, optional
+            Additional parameters for the model.
+            - `guess_V_F_ratio`: initial guess for the vapor-to-liquid ratio (V/F), default is 0.5
+
+        Returns
+        -------
+        res : dict
+            Dictionary containing the results of the calculation.
+            - feed_mole_fraction: liquid mole fraction (zi)
+            - vapor_pressure: vapor pressure [Pa]
+            - temperature: temperature [K]
+            - pressure: pressure [Pa]
+            - equilibrium_model: equilibrium model used for the calculation
+            - components: list of components used in the calculation
+            - message: message displayed during the calculation
+            - flash_checker_res: flash checker result
+            - computation_time: computation time [s]
+
+        Notes
+        -----
+        Flash occurs when the bubble pressure is greater than the dew pressure, and the system is in a two-phase region. The calculation will return the phase compositions and flow rates based on the specified temperature and pressure.
+
+        flash case:
+        - P[bubble] > P[flash] > P[dew] results in the two phase feed
+        - P[bubble] < P[flash] results in the liquid phase feed
+        - P[dew] > P[flash] results in the vapor phase feed
+        '''
+        try:
+            # ! Start timing
+            start_time = time.time()
+
+            # SECTION: check inputs
+            # check inputs
+            if not isinstance(inputs, dict):
+                raise ValueError("Inputs must be a dictionary.")
+
+            # check keys
+            if 'mole_fraction' not in inputs or 'pressure' not in inputs or 'temperature' not in inputs:
+                raise ValueError(
+                    "Inputs must contain 'mole_fraction', 'pressure', and 'temperature' keys.")
+
+            # NOTE: set inputs - dict
+            mole_fractions = inputs['mole_fraction']
+            # NOTE: pressure [Pa]
+            pressure = pycuc.convert_from_to(
+                inputs['pressure'][0], inputs['pressure'][1], 'Pa')
+            # NOTE: temperature [K]
+            temperature = pycuc.convert_from_to(
+                inputs['temperature'][0], inputs['temperature'][1], 'K')
+
+            # check mole fractions
+            if not isinstance(mole_fractions, dict):
+                raise ValueError("Mole fractions must be a dictionary.")
+
+            if not all(isinstance(v, (int, float)) for v in mole_fractions.values()):
+                raise ValueError("Mole fractions must be numeric.")
+
+            if not all(0 <= v <= 1 for v in mole_fractions.values()):
+                raise ValueError("Mole fractions must be between 0 and 1.")
+
+            # check pressure
+            if not isinstance(pressure, (int, float)):
+                raise ValueError("pressure must be numeric.")
+            # check temperature
+            if not isinstance(temperature, (int, float)):
+                raise ValueError("temperature must be numeric.")
+
+            # NOTE: components
+            components = self.components
+
+            # mole fractions based on components id
+            mole_fractions = [
+                mole_fractions[component] for component in components
+            ]
+
+            # SECTION: extract source
+            Source_ = Source(self.model_source)
+
+            # NOTE: vapor pressure source
+            VaPr_comp = {}
+
+            # looping through components
+            for component in components:
+                # NOTE: equation source
+                # antoine equations [Pa]
+                VaPr_eq = Source_.eq_extractor(component, 'VaPr')
+
+                # NOTE: args
+                VaPr_args = VaPr_eq.args
+                # check args (SI)
+                VaPr_args_required = Source_.check_args(component, VaPr_args)
+
+                # build args
+                _VaPr_args = Source_.build_args(component, VaPr_args_required)
+
+                # NOTE: update P and T
+                _VaPr_args['T'] = temperature
+
+                # set
+                VaPr_comp[component] = {
+                    "value": VaPr_eq,
+                    "args": _VaPr_args,
+                    "return": VaPr_eq.returns
+                }
+
+            # SECTION: flash checker
+            # check
+            flash_checker_res = self._flash_checker(
+                z_i=mole_fractions,
+                Pf=pressure,
+                Tf=temperature,
+                VaPr_comp=VaPr_comp,
+            )
+
+            # NOTE: init res
+            res = {}
+
+            # NOTE: set message
+            message = message if message is not None else "Is Flashable Calculation"
+            # add
+            res['message'] = message
+
+            # NOTE: pressure and temperature
+            res['pressure'] = {
+                "value": pressure,
+                "unit": "Pa"
+            }
+            res['temperature'] = {
+                "value": temperature,
+                "unit": "K"
+            }
+
+            # NOTE: mole fractions
+            res['feed_mole_fraction'] = {
+                components[i]: mole_fractions[i] for i in range(len(components))
+            }
+
+            # NOTE: components
+            res['components'] = components
+
+            # NOTE: models
+            res["equilibrium_model"] = equilibrium_model
+            res["flash_checker_res"] = flash_checker_res
+
+            # NOTE: set time
+            # ! Stop timing
+            end_time = time.time()
+            computation_time = end_time - start_time
+            # add to res
+            res['computation_time'] = {
+                "value": computation_time,
+                "unit": "s"
+            }
+
+            # res
+            return res
+        except Exception as e:
+            raise Exception(
+                f"Error in is_flashable calculation: {e}")

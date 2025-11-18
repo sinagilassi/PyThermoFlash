@@ -106,14 +106,22 @@ def _input_generator(
             }
 
             # >> temperature input
-            if model_type == 'bpp':
+            if (
+                model_type == 'bpp' or
+                model_type == 'dpp' or
+                model_type == 'if'
+            ):
                 if temperature is None:
                     raise ValueError(
                         "Temperature input is required for bubble-point pressure calculation.")
                 inputs["temperature"] = [temperature.value, temperature.unit]
 
             # >> pressure input
-            if model_type == 'bpt':
+            if (
+                model_type == 'bpt' or
+                model_type == 'dpt' or
+                model_type == 'if'
+            ):
                 if pressure is None:
                     raise ValueError(
                         "Pressure input is required for bubble-point temperature calculation.")
@@ -760,4 +768,81 @@ def calc_isothermal_flash(
             raise
     except Exception as e:
         logger.error(f"Error in calc_if: {e}")
+        raise e
+
+
+def is_flashable(
+    components: List[Component],
+    temperature: Temperature,
+    pressure: Pressure,
+    model_source: ModelSource,
+    component_key: Literal[
+        'Name-State',
+        'Formula-State',
+        'Name',
+        'Formula',
+        'Name-Formula-State',
+        'Formula-Name-State'
+    ] = "Name-State",
+    message: str | None = None,
+) -> Dict[str, Any]:
+    '''
+    Check if the mixture is flashable at the given pressure and temperature based on Raoult's law.
+
+    Parameters
+    ----------
+    components : List[Component]
+        List of Component objects representing the mixture.
+    temperature : Temperature
+        Temperature object specifying the temperature for the flash check.
+    pressure : Pressure
+        Pressure object specifying the pressure for the flash check.
+    model_source : ModelSource
+        ModelSource object containing the data source and equation of state information.
+    component_key : Literal['Name-State', 'Formula-State', 'Name', 'Formula', 'Name-Formula-State',
+        'Formula-Name-State'], optional
+        The key to identify components. Options are "Name-State" or "Formula-State". Default is "Name-State".
+    message : str | None, optional
+        Custom message to display during the calculation. Default is None.
+
+    Returns
+    -------
+    res : dict
+        Dictionary containing the flashability result.
+        - is_flashable: bool indicating if the mixture is flashable
+        - bubble_pressure: bubble pressure [Pa]
+        - dew_pressure: dew pressure [Pa]
+        - temperature: temperature [K]
+        - pressure: pressure [Pa]
+        - components: list of components used in the calculation
+        - computation_time: computation time [s]
+    '''
+    try:
+        # SECTION: generate inputs
+        input_dict = _input_generator(
+            model_type='if',
+            components=components,
+            model_source=model_source,
+            temperature=temperature,
+            pressure=pressure,
+            component_key=component_key,
+        )
+
+        # unpack inputs
+        vle_model: VLE = input_dict['vle_model']
+        inputs: Dict[str, Any] = input_dict['inputs']
+
+        # SECTION: perform check
+        try:
+            res = vle_model.is_flashable(
+                inputs=inputs,
+                equilibrium_model='raoult',
+                message=message,
+            )
+            return res
+        except Exception as e:
+            logger.error(f"Flashability check failed!, {e}")
+            raise
+    except Exception as e:
+        logger.error(f"Error in is_flashable: {e}")
         raise e

@@ -14,7 +14,8 @@ from pyThermoDB import build_component_thermodb_from_reference, ComponentThermoD
 from rich import print
 # thermo flash
 import pyThermoFlash as ptf
-from model_source import datasource, equationsource
+from pyThermoFlash.core import calc_isothermal_flash
+from model_source import model_source_, datasource, equationsource
 
 # version
 print(ptf.__version__)
@@ -83,9 +84,37 @@ inputs = {
     'pressure': [7.0, 'kPa']
 }
 
+temperature = Temperature(value=30.0, unit='C')
+pressure = Pressure(value=7.0, unit='kPa')
+water = Component(
+    name='water',
+    formula='H2O',
+    state='l',
+    mole_fraction=0.50
+)
+ethanol = Component(
+    name='ethanol',
+    formula='C2H6O',
+    state='l',
+    mole_fraction=0.50
+)
+
+# SECTION: check flashability
+res_check = vle.is_flashable(inputs=inputs)
+print(res_check)
+
 # SECTION: flash calculation
 # NOTE: flash calculation (least_squares)
 res_bp = vle.flash_isothermal(inputs=inputs)
+print(res_bp)
+
+# ! new method
+res_bp = calc_isothermal_flash(
+    components=[water, ethanol],
+    temperature=temperature,
+    pressure=pressure,
+    model_source=model_source_,
+)
 print(res_bp)
 
 # NOTE: flash calculation (minimize): not recommended

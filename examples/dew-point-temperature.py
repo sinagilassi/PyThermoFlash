@@ -14,7 +14,8 @@ from pyThermoDB import build_component_thermodb_from_reference, ComponentThermoD
 from rich import print
 # thermo flash
 import pyThermoFlash as ptf
-from model_source import datasource, equationsource
+from pyThermoFlash.core import calc_dew_point_temperature
+from model_source import model_source_, datasource, equationsource
 
 # version
 print(ptf.__version__)
@@ -86,12 +87,38 @@ inputs = {
     'pressure': [101.3, 'kPa'],
 }
 
+pressure = Pressure(
+    value=101.3,
+    unit='kPa'
+)
+benzene = Component(
+    name='benzene',
+    formula='C6H6',
+    state='l',
+    mole_fraction=0.26
+)
+toluene = Component(
+    name='toluene',
+    formula='C7H8',
+    state='l',
+    mole_fraction=0.74
+)
+
 # SECTION: dew-point temperature calculation
 # NOTE: raoult's law
 res_dp = vle.dew_temperature(
     inputs=inputs,
     equilibrium_model='raoult',
-    solver_method='fsolve')
+    solver_method='fsolve'
+)
+print(res_dp)
+
+# ! new method
+res_dp = calc_dew_point_temperature(
+    components=[benzene, toluene],
+    pressure=pressure,
+    model_source=model_source_,
+)
 print(res_dp)
 
 # NOTE: modified raoult's law

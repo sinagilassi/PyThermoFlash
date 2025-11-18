@@ -14,7 +14,8 @@ from pyThermoDB import build_component_thermodb_from_reference, ComponentThermoD
 from rich import print
 # thermo flash
 import pyThermoFlash as ptf
-from model_source import datasource, equationsource
+from pyThermoFlash.core import calc_bubble_point_temperature
+from model_source import model_source_, datasource, equationsource
 
 # version
 print(ptf.__version__)
@@ -86,11 +87,37 @@ inputs = {
     'pressure': [101.3, 'kPa'],
 }
 
+pressure = Pressure(
+    value=101.3,
+    unit='kPa'
+)
+benzene = Component(
+    name='benzene',
+    formula='C6H6',
+    state='l',
+    mole_fraction=0.26
+)
+toluene = Component(
+    name='toluene',
+    formula='C7H8',
+    state='l',
+    mole_fraction=0.74
+)
+
 # SECTION: bubble-point temperature calculation
 # NOTE: raoult's law
 res_bp = vle.bubble_temperature(
     inputs=inputs,
-    equilibrium_model='raoult')
+    equilibrium_model='raoult'
+)
+print(res_bp)
+
+# ! new method
+res_bp = calc_bubble_point_temperature(
+    components=[benzene, toluene],
+    pressure=pressure,
+    model_source=model_source_,
+)
 print(res_bp)
 
 # NOTE: modified raoult's law
