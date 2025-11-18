@@ -262,8 +262,9 @@ class VLE(Equilibria):
             components = self.components
 
             # mole fractions based on components id
-            mole_fractions = [mole_fractions[component]
-                              for component in components]
+            mole_fractions = [
+                mole_fractions[component] for component in components
+            ]
 
             # SECTION: extract source
             Source_ = Source(self.model_source)
@@ -459,8 +460,9 @@ class VLE(Equilibria):
             components = self.components
 
             # mole fractions based on components id
-            mole_fractions = [mole_fractions[component]
-                              for component in components]
+            mole_fractions = [
+                mole_fractions[component] for component in components
+            ]
 
             # SECTION: extract source
             Source_ = Source(self.model_source)
@@ -573,7 +575,7 @@ class VLE(Equilibria):
             'root', 'least-squares', 'fsolve'
         ] = 'root',
         message: Optional[str] = None,
-            **kwargs
+        **kwargs
     ):
         '''
         The `bubble-point temperature` (BT) calculation determines the temperature at which the first bubble of vapor forms when a liquid mixture is heated at a constant pressure. It helps identify the temperature at which the liquid will start vaporizing.
@@ -603,6 +605,10 @@ class VLE(Equilibria):
             Additional parameters for the model.
             - `guess_temperature` : float
                 Initial guess for the bubble-point temperature (in Kelvin, Celsius, Fahrenheit), default is 295 K.
+            - activity_inputs : dict,
+                model parameters.
+            - activity_coefficients : dict,
+                activity coefficients for each component.
 
         Returns
         -------
@@ -670,8 +676,9 @@ class VLE(Equilibria):
             components = self.components
 
             # mole fractions based on components id
-            mole_fractions = [mole_fractions[component]
-                              for component in components]
+            mole_fractions = [
+                mole_fractions[component] for component in components
+            ]
 
             # SECTION: check for activity model
 
@@ -878,8 +885,9 @@ class VLE(Equilibria):
             components = self.components
 
             # mole fractions based on components id
-            mole_fractions = [mole_fractions[component]
-                              for component in components]
+            mole_fractions = [
+                mole_fractions[component] for component in components
+            ]
 
             # SECTION: extract source
             Source_ = Source(self.model_source)
@@ -985,7 +993,7 @@ class VLE(Equilibria):
         ] = 'least_squares',
         flash_checker: bool = False,
         message: Optional[str] = None,
-            **kwargs
+        **kwargs
     ):
         '''
         The `isothermal-flash` (IFL) calculation This calculation determines the vapor and liquid phase compositions and amounts at a specified temperature and pressure. The system is "flashed" isothermally, meaning the temperature is kept constant while the phase behavior is calculated for a mixture.

@@ -32,6 +32,7 @@ class Equilibria:
         self._equationsource = equationsource
 
         # NOTE: init activity model
+        # ! init Activity model
         self.Activity_ = Activity(
             datasource=self._datasource,
             equationsource=self._equationsource
@@ -386,7 +387,7 @@ class Equilibria:
         except Exception as e:
             raise Exception(f'bubble pressure calculation failed! {e}')
 
-    def _DP(self, params, **kwargs):
+    def _DP(self, params, **kwargs) -> Dict:
         '''
         The dew-point pressure (DP) calculation determines the pressure at which the first drop of liquid condenses when a vapor mixture is cooled at a constant temperature. It is used to find the pressure at which vapor will begin to condense.
 
