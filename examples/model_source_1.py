@@ -88,6 +88,7 @@ thermodb_component_ = build_component_thermodb_from_reference(
     component_state=selected_component.state,
     reference_content=REFERENCE_CONTENT,
     ignore_state_props=ignore_state_props,
+    component_key="Name-State"
 )
 # >> check
 if thermodb_component_ is None:
@@ -112,10 +113,13 @@ print(datasource)
 print(equationsource)
 
 # ------------------------------------------------
-# ! THERMODYNAMIC PROPERTIES
+# 🟠 THERMODYNAMIC PROPERTIES
 # ------------------------------------------------
 # component key
 component_key = selected_component.name+"-"+selected_component.state
-# vapor pressure
-VaPr = equationsource[component_key]['VaPr'].cal(T=300.1)
+# vapor pressure (min)
+VaPr = equationsource[component_key]['VaPr'].cal(T=159.05)
+print(VaPr)
+# vapor pressure (max)
+VaPr = equationsource[component_key]['VaPr'].cal(T=514)
 print(VaPr)

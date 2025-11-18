@@ -16,7 +16,7 @@ print(ptdblink.__version__)
 # !Example 10-4, Page 452, Fundamental of Chemical Engineering Thermodynamics, Kevin D. Dahm
 
 # =======================================
-# ! LOAD THERMODB
+# #️⃣ LOAD THERMODB
 # =======================================
 # NOTE: thermodb directory
 thermodb_dir = os.path.join(os.getcwd(), 'tests', 'thermodb')
@@ -46,7 +46,7 @@ print(type(res_))
 # print(res_.prop_data)
 
 # =======================================
-# ! THERMODB LINK CONFIGURATION
+# #️⃣ THERMODB LINK CONFIGURATION
 # =======================================
 # init thermodb hub
 thub1 = ptdblink.init()
@@ -69,8 +69,17 @@ thub1.config_thermodb_rule(thermodb_config_file)
 # build datasource & equationsource
 datasource, equationsource = thub1.build()
 
+# ------------------------------------------------
+# 🟠 THERMODYNAMIC PROPERTIES
+# ------------------------------------------------
+# component key
+component_key = 'ethanol'
+# vapor pressure
+VaPr = equationsource[component_key]['VaPr'].cal(T=159.05)
+print(VaPr)
+
 # =======================================
-# ! THERMOFLASH CALCULATION
+# #️⃣ THERMOFLASH CALCULATION
 # =======================================
 # SECTION: vle model
 # components

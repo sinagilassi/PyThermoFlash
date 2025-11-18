@@ -91,6 +91,7 @@ for component in components_list:
         component_state=component.state,
         reference_content=REFERENCE_CONTENT,
         ignore_state_props=ignore_state_props,
+        component_key="Name-State"
     )
 
     # check
