@@ -9,10 +9,11 @@ from pyThermoDB import TableMatrixData
 
 
 class Activity:
-    def __init__(self,
-                 datasource: Optional[Dict[str, Any]] = None,
-                 equationsource: Optional[Dict[str, Any]] = None
-                 ):
+    def __init__(
+        self,
+        datasource: Optional[Dict[str, Any]] = None,
+        equationsource: Optional[Dict[str, Any]] = None
+    ):
         '''
         Activity model class for pyThermoFlash.
 
@@ -31,11 +32,13 @@ class Activity:
     def __repr__(self):
         return "Activity model class for pyThermoFlash"
 
-    def NRTL(self,
-             components: List[str],
-             z_i_comp: Dict[str, float],
-             temperature: float,
-             **kwargs):
+    def NRTL(
+        self,
+        components: List[str],
+        z_i_comp: Dict[str, float],
+        temperature: float,
+        **kwargs
+    ):
         '''
         NRTL activity model for calculating activity coefficients.
 
@@ -82,6 +85,15 @@ class Activity:
                 # NOTE: update activity_inputs with nrtl_datasource
                 if nrtl_datasource is not None:
                     activity_inputs.update(nrtl_datasource)
+
+            # ! set initial values
+            # a_ij = None
+            # b_ij = None
+            # c_ij = None
+            # d_ij = None
+            # dg_ij = None
+            # alpha_ij = None
+            # tau_ij = None
 
             # SECTION: extract activity model inputs
             # NOTE: method 1
@@ -248,11 +260,13 @@ class Activity:
         except Exception as e:
             raise Exception(f"Failed to calculate NRTL activity: {e}") from e
 
-    def UNIQUAC(self,
-                components: List[str],
-                z_i_comp: Dict[str, float],
-                temperature: float,
-                **kwargs):
+    def UNIQUAC(
+        self,
+            components: List[str],
+            z_i_comp: Dict[str, float],
+            temperature: float,
+            **kwargs
+    ):
         '''
         UNIQUAC activity model for calculating activity coefficients.
 
