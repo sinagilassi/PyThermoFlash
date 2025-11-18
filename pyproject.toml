@@ -3,8 +3,8 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "pythermoflash"
-version = "0.1.6"
+name = "pyThermoFlash"
+version = "0.1.7"
 description = "PyThermoFlash is a powerful and user-friendly computational tool tailored for engineers, researchers, and scientists working with thermodynamic systems. It specializes in performing bubble-point, dew-point, and flash calculations, which are essential for determining the equilibrium state of mixtures under specified conditions. With support for various thermodynamic models, PyThermoFlash ensures accurate predictions of phase behavior and properties for complex fluid systems."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -91,7 +91,7 @@ exclude = [
 ]
 
 [tool.setuptools.package-data]
-pyThermoModels = [
+pyThermoFlash = [
     'config/*.yml',
     'config/*.csv',
     'data/*.csv',
