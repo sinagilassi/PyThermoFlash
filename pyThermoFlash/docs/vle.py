@@ -263,7 +263,7 @@ class VLE(Equilibria):
 
             # mole fractions based on components id
             mole_fractions = [
-                mole_fractions[component] for component in components
+                float(mole_fractions[component]) for component in components
             ]
 
             # SECTION: extract source

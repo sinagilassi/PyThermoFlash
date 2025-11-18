@@ -5,8 +5,16 @@ from pythermodb_settings.models import Component, Temperature, Pressure
 from pythermodb_settings.utils import set_component_id
 from pyThermoLinkDB.models import ModelSource
 # locals
-from ..utils import set_feed_specification
+from ..utils import (
+    set_feed_specification,
+    prepare_bubble_pressure_result_structure,
+    prepare_dew_pressure_result_structure,
+    prepare_bubble_temperature_result_structure,
+    prepare_dew_temperature_result_structure
+
+)
 from ..docs.vle import VLE
+from ..models import BubblePressureResult, DewPressureResult
 
 # NOTE: logger
 logger = logging.getLogger(__name__)
@@ -34,9 +42,32 @@ def _input_generator(
         'Name-Formula-State',
         'Formula-Name-State'
     ] = "Name-State",
+    component_delimiter: str = "-",
 ):
     '''
     Input generator for thermodynamic property calculations.
+
+    Parameters
+    ----------
+    model_type : Literal['bpp', 'dpp', 'bpt', 'dpt', 'if']
+        Type of calculation model:
+        - 'bpp': bubble-point pressure
+        - 'dpp': dew-point pressure
+        - 'bpt': bubble-point temperature
+        - 'dpt': dew-point temperature
+        - 'if': isothermal flash
+    components : List[Component]
+        List of Component objects representing the mixture.
+    model_source : ModelSource
+        ModelSource object containing the data source and equation of state information.
+    temperature : Optional[Temperature], optional
+        Temperature object specifying the temperature for the calculation. Required for 'bpp', 'dpp', and 'if' models. Default is None.
+    pressure : Optional[Pressure], optional
+        Pressure object specifying the pressure for the calculation. Required for 'bpt', 'dpt', and 'if' models. Default is None.
+    component_key : Literal['Name-State', 'Formula-State', 'Name', 'Formula', 'Name-Formula-State', 'Formula-Name-State'], optional
+        The key to identify components. Options are "Name-State" or "Formula-State". Default is "Name-State".
+    component_delimiter : str, optional
+        Delimiter used in component identification. Default is "-".
 
     Returns
     -------
@@ -94,6 +125,10 @@ def _input_generator(
                 ) for comp in components
             ]
 
+            # component names
+            component_names: List[str] = [comp.rsplit(component_delimiter, 1)[
+                0] for comp in component_ids]
+
             # NOTE: set feed specification
             feed_spec: Dict[str, float] = set_feed_specification(
                 components=components,
@@ -148,6 +183,8 @@ def _input_generator(
 
         # SECTION: return inputs
         return {
+            'component_names': component_names,
+            'component_ids': component_ids,
             'vle_model': vle_model,
             'inputs': inputs
         }
@@ -182,7 +219,7 @@ def calc_bubble_point_pressure(
     ] = "Name-State",
     message: str | None = None,
     **kwargs
-):
+) -> BubblePressureResult | None:
     '''
     The Bubble-Point Pressure (BPP) calculation determines the pressure at which the first bubble of vapor forms when a liquid mixture is heated at a constant temperature. It is used to find the pressure for a given temperature at which the liquid will begin to vaporize.
 
@@ -211,7 +248,7 @@ def calc_bubble_point_pressure(
 
     Returns
     -------
-    res : dict
+    res : BubblePressureResult | None
         Dictionary containing the results of the calculation.
         - bubble_pressure: bubble pressure [Pa]
         - temperature: temperature [K]
@@ -249,6 +286,7 @@ def calc_bubble_point_pressure(
         )
 
         # unpack inputs
+        component_names: List[str] = input_dict['component_names']
         vle_model: VLE = input_dict['vle_model']
         inputs: Dict[str, Any] = input_dict['inputs']
 
@@ -262,14 +300,23 @@ def calc_bubble_point_pressure(
                 message=message,
                 **kwargs
             )
+
+            # NOTE: prepare result structure
+            res = prepare_bubble_pressure_result_structure(
+                component_names=component_names,
+                components=components,
+                data=res
+            )
+
+            # NOTE: return result
             return res
         except Exception as e:
             logger.error(f"BPP calculation failed!, {e}")
-            raise
+            return None
 
     except Exception as e:
         logger.error(f"Error in calc_bpp: {e}")
-        raise e
+        return None
 
 # SECTION: Dew-point pressure (DPP) calculation
 
@@ -298,7 +345,7 @@ def calc_dew_point_pressure(
     ] = "Name-State",
     message: str | None = None,
     **kwargs
-):
+) -> DewPressureResult | None:
     '''
     The dew-point pressure (DPP) calculation determines the pressure at which the first drop of liquid condenses when a vapor mixture is cooled at a constant temperature. It is used to find the pressure at which vapor will begin to condense.
 
@@ -327,7 +374,7 @@ def calc_dew_point_pressure(
 
     Returns
     -------
-    res : dict
+    res : DewPressureResult | None
         Dictionary containing the results of the calculation.
         - dew_pressure: dew pressure [Pa]
         - temperature: temperature [K]
@@ -364,6 +411,7 @@ def calc_dew_point_pressure(
         )
 
         # unpack inputs
+        component_ids: List[str] = input_dict['component_ids']
         vle_model: VLE = input_dict['vle_model']
         inputs: Dict[str, Any] = input_dict['inputs']
 
@@ -377,7 +425,17 @@ def calc_dew_point_pressure(
                 message=message,
                 **kwargs
             )
+
+            # NOTE: prepare result structure
+            res = prepare_dew_pressure_result_structure(
+                component_names=component_ids,
+                components=components,
+                data=res
+            )
+
+            # NOTE: return result
             return res
+
         except Exception as e:
             logger.error(f"DPP calculation failed!, {e}")
             raise
@@ -487,6 +545,7 @@ def calc_bubble_point_temperature(
         )
 
         # unpack inputs
+        component_ids: List[str] = input_dict['component_ids']
         vle_model: VLE = input_dict['vle_model']
         inputs: Dict[str, Any] = input_dict['inputs']
 
@@ -501,6 +560,15 @@ def calc_bubble_point_temperature(
                 message=message,
                 **kwargs
             )
+
+            # NOTE: prepare result structure
+            res = prepare_bubble_temperature_result_structure(
+                component_names=component_ids,
+                components=components,
+                data=res
+            )
+
+            # NOTE: return result
             return res
         except Exception as e:
             logger.error(f"BPT calculation failed!, {e}")
@@ -610,6 +678,7 @@ def calc_dew_point_temperature(
         )
 
         # unpack inputs
+        component_ids: List[str] = input_dict['component_ids']
         vle_model: VLE = input_dict['vle_model']
         inputs: Dict[str, Any] = input_dict['inputs']
 
@@ -624,6 +693,15 @@ def calc_dew_point_temperature(
                 message=message,
                 **kwargs
             )
+
+            # NOTE: prepare result structure
+            res = prepare_dew_temperature_result_structure(
+                component_names=component_ids,
+                components=components,
+                data=res
+            )
+
+            # NOTE: return result
             return res
         except Exception as e:
             logger.error(f"DPT calculation failed!, {e}")
@@ -747,6 +825,7 @@ def calc_isothermal_flash(
         )
 
         # unpack inputs
+        component_ids: List[str] = input_dict['component_ids']
         vle_model: VLE = input_dict['vle_model']
         inputs: Dict[str, Any] = input_dict['inputs']
 
@@ -829,6 +908,7 @@ def is_flashable(
         )
 
         # unpack inputs
+        component_ids: List[str] = input_dict['component_ids']
         vle_model: VLE = input_dict['vle_model']
         inputs: Dict[str, Any] = input_dict['inputs']
 
