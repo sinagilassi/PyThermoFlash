@@ -9,7 +9,9 @@ from ..models import (
     BubbleTemperatureResult,
     DewTemperatureResult,
     ComponentProps,
-    Quantity
+    Quantity,
+    FlashIsothermalResult,
+    CheckFlashIsothermalResult
 )
 
 # NOTE: setup logger
@@ -20,12 +22,14 @@ def _prepare_pressure_result_structure(
         component_names: List[str],
         components: List[Component],
         data: dict,
-        model_type: Literal['BP', 'DP', 'BT', 'DT'],
+        model_type: Literal['BP', 'DP', 'BT', 'DT', 'IF', 'CIF'],
 ) -> Union[
     BubblePressureResult,
     DewPressureResult,
     BubbleTemperatureResult,
     DewTemperatureResult,
+    FlashIsothermalResult,
+    CheckFlashIsothermalResult,
     None
 ]:
     '''
@@ -131,11 +135,14 @@ def _prepare_pressure_result_structure(
         # iterate components
         for i, comp_name in enumerate(component_names):
             # feed mole fraction
-            mole_frac_value = feed_mole_fraction_[i]
+            mole_frac_value = feed_mole_fraction_[i] if i < len(
+                feed_mole_fraction_) else None
             # vapor mole fraction
-            vapor_mole_frac_value = vapor_mole_fraction_[i]
+            vapor_mole_frac_value = vapor_mole_fraction_[i] if i < len(
+                vapor_mole_fraction_) else None
             # liquid mole fraction
-            liquid_mole_frac_value = liquid_mole_fraction_[i]
+            liquid_mole_frac_value = liquid_mole_fraction_[i] if i < len(
+                liquid_mole_fraction_) else None
 
             comp = next(
                 (c for c in components if c.name == comp_name),
@@ -191,6 +198,41 @@ def _prepare_pressure_result_structure(
         max_iter = data.get('max_iter', None)
         tolerance = data.get('tolerance', None)
         iteration = data.get('iteration', None)
+
+        # NOTE: flash properties
+        V_F_ratio = data.get('V_F_ratio', None)
+        # >> check
+        if V_F_ratio is not None:
+            V_F_ratio = Quantity[float](
+                value=float(V_F_ratio['value']),
+                unit=V_F_ratio['unit'],
+                symbol=V_F_ratio['symbol']
+            )
+        else:
+            V_F_ratio = Quantity[float](
+                value=0.0,
+                unit='-',
+                symbol='V/F'
+            )
+
+        L_F_ratio = data.get('L_F_ratio', None)
+        # >> check
+        if L_F_ratio is not None:
+            L_F_ratio = Quantity[float](
+                value=float(L_F_ratio['value']),
+                unit=L_F_ratio['unit'],
+                symbol=L_F_ratio['symbol']
+            )
+        else:
+            L_F_ratio = Quantity[float](
+                value=0.0,
+                unit='-',
+                symbol='L/F'
+            )
+
+        solver_message = data.get('solver_message', None)
+        flash_checker = data.get('flash_checker', None)
+        flash_checker_res = data.get('flash_checker_res', None)
 
         # SECTION: component properties
         component_props: List[ComponentProps] = []
@@ -319,6 +361,42 @@ def _prepare_pressure_result_structure(
                 activity_model=activity_model,
                 solver_method=solver_method,
                 computation_time=computation_time
+            )
+        elif model_type == 'IF':
+            # ! Flash Isothermal Result
+            result_structure = FlashIsothermalResult(
+                V_F_ratio=V_F_ratio,
+                L_F_ratio=L_F_ratio,
+                temperature=temperature,
+                pressure=pressure,
+                component_ids=component_ids,
+                feed_mole_fraction=feed_mole_fraction,
+                vapor_mole_fraction=vapor_mole_fraction,
+                liquid_mole_fraction=liquid_mole_fraction,
+                mole_fraction_sum=mole_fraction_sum,
+                component_props=component_props,
+                equilibrium_model=equilibrium_model,
+                fugacity_model=fugacity_model,
+                activity_model=activity_model,
+                flash_checker=flash_checker,
+                flash_checker_res=flash_checker_res,
+                solver_method=solver_method,
+                solver_message=solver_message,
+                message=message,
+                computation_time=computation_time,
+            )
+        elif model_type == 'CIF':
+            # ! Check Flash Isothermal Result
+            result_structure = CheckFlashIsothermalResult(
+                pressure=pressure,
+                temperature=temperature,
+                component_ids=component_ids,
+                components=components,
+                feed_mole_fraction=feed_mole_fraction,
+                equilibrium_model=equilibrium_model,
+                flash_checker_res=flash_checker_res,
+                message=message,
+                computation_time=computation_time,
             )
         else:
             result_structure = None
@@ -461,5 +539,73 @@ def prepare_dew_temperature_result_structure(
     )
 
     if isinstance(res, DewTemperatureResult):
+        return res
+    return None
+
+
+def prepare_flash_isothermal_result_structure(
+        component_names: List[str],
+        components: List[Component],
+        data: dict,
+) -> FlashIsothermalResult | None:
+    '''
+    Prepare flash isothermal result structure for output.
+
+    Parameters
+    ----------
+    component_names : List[str]
+        List of component names involved in the calculation.
+    components : List[Component]
+        List of Component objects used in the calculation.
+    data : dict
+        Raw data dictionary containing calculation results.
+
+    Returns
+    -------
+    FlashIsothermalResult | None
+        Structured FlashIsothermalResult object or None if preparation fails.
+    '''
+    res = _prepare_pressure_result_structure(
+        component_names=component_names,
+        components=components,
+        data=data,
+        model_type='IF',
+    )
+
+    if isinstance(res, FlashIsothermalResult):
+        return res
+    return None
+
+
+def prepare_check_flash_isothermal_result_structure(
+        component_names: List[str],
+        components: List[Component],
+        data: dict,
+) -> CheckFlashIsothermalResult | None:
+    '''
+    Prepare check flash isothermal result structure for output.
+
+    Parameters
+    ----------
+    component_names : List[str]
+        List of component names involved in the calculation.
+    components : List[Component]
+        List of Component objects used in the calculation.
+    data : dict
+        Raw data dictionary containing calculation results.
+
+    Returns
+    -------
+    CheckFlashIsothermalResult | None
+        Structured CheckFlashIsothermalResult object or None if preparation fails.
+    '''
+    res = _prepare_pressure_result_structure(
+        component_names=component_names,
+        components=components,
+        data=data,
+        model_type='CIF',
+    )
+
+    if isinstance(res, CheckFlashIsothermalResult):
         return res
     return None

@@ -578,7 +578,7 @@ class Equilibria:
                     "unit": "Pa"
                 },
                 "temperature": {
-                    "value": T,
+                    "value": float(T_value),
                     "unit": "K"
                 },
                 "feed_mole_fraction": y_i.tolist() if isinstance(y_i, np.ndarray) else y_i,
@@ -1990,8 +1990,10 @@ class Equilibria:
                 # NOTE: Bounds
                 # individual bounds (min, max)
                 bounds = [
-                    (eps, 1.0 - eps)] + [(eps, 1.0) for _ in range(N - 1)
-                                         ]
+                    (eps, 1.0 - eps)
+                ] + [
+                    (eps, 1.0) for _ in range(N - 1)
+                ]
 
                 # V/F
                 _res = optimize.minimize(
@@ -2067,39 +2069,46 @@ class Equilibria:
             res = {
                 "V_F_ratio": {
                     "value": float(V_F_ratio),
-                    "unit": "dimensionless"
+                    "unit": "dimensionless",
+                    "symbol": "V/F"
                 },
                 "L_F_ratio": {
                     "value": float(L_F_ratio),
-                    "unit": "dimensionless"
+                    "unit": "dimensionless",
+                    "symbol": "L/F"
                 },
-                "feed_mole_fraction": z_i,
-                "liquid_mole_fraction": xi,
-                "vapor_mole_fraction": yi,
+                "feed_mole_fraction": z_i.tolist() if isinstance(z_i, np.ndarray) else z_i,
+                "liquid_mole_fraction": xi.tolist() if isinstance(xi, np.ndarray) else xi,
+                "vapor_mole_fraction": yi.tolist() if isinstance(yi, np.ndarray) else yi,
                 "mole_fraction_sum": {
                     "xi": float(np.sum(xi)),
                     "yi": float(np.sum(yi)),
                     "zi": float(np.sum(z_i))
                 },
                 "vapor_pressure": {
-                    "value": VaPr_i,
-                    "unit": "Pa"
+                    "value": VaPr_i.tolist() if isinstance(VaPr_i, np.ndarray) else VaPr_i,
+                    "unit": "Pa",
+                    "symbol": "VaPr"
                 },
                 "K_ratio": {
-                    "value": K_i,
-                    "unit": "dimensionless"
+                    "value": K_i.tolist() if isinstance(K_i, np.ndarray) else K_i,
+                    "unit": "dimensionless",
+                    "symbol": "Kxy"
                 },
                 "temperature": {
                     "value": T_value,
-                    "unit": "K"
+                    "unit": "K",
+                    "symbol": "T"
                 },
                 "pressure": {
                     "value": P_value,
-                    "unit": "Pa"
+                    "unit": "Pa",
+                    "symbol": "P"
                 },
                 "activity_coefficient": {
-                    "value": AcCo_i,
-                    "unit": "dimensionless"
+                    "value": AcCo_i.tolist() if isinstance(AcCo_i, np.ndarray) else AcCo_i,
+                    "unit": "dimensionless",
+                    "symbol": "AcCo"
                 },
                 "solver_message": solver_message,
             }

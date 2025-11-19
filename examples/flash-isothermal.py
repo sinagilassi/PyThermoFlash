@@ -14,7 +14,7 @@ from pyThermoDB import build_component_thermodb_from_reference, ComponentThermoD
 from rich import print
 # thermo flash
 import pyThermoFlash as ptf
-from pyThermoFlash.core import calc_isothermal_flash
+from pyThermoFlash.core import calc_isothermal_flash, is_flashable
 from model_source import model_source_, datasource, equationsource
 
 # version
@@ -103,6 +103,14 @@ ethanol = Component(
 res_check = vle.is_flashable(inputs=inputs)
 print(res_check)
 
+res_check = is_flashable(
+    components=[water, ethanol],
+    temperature=temperature,
+    pressure=pressure,
+    model_source=model_source_,
+)
+print(res_check)
+
 # SECTION: flash calculation
 # NOTE: flash calculation (least_squares)
 res_bp = vle.flash_isothermal(inputs=inputs)
@@ -118,8 +126,8 @@ res_bp = calc_isothermal_flash(
 print(res_bp)
 
 # NOTE: flash calculation (minimize): not recommended
-# res_bp = vle.flash_isothermal(inputs=inputs, solver_method='minimize')
-# print(res_bp)
+res_bp = vle.flash_isothermal(inputs=inputs, solver_method='minimize')
+print(res_bp)
 
 # REVIEW: modified raoult's law (soon)
 # res_bp = vle.flash_isothermal(

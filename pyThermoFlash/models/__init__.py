@@ -4,7 +4,9 @@ from .flash import (
     BubbleTemperatureResult,
     DewTemperatureResult,
     ComponentProps,
-    Quantity
+    Quantity,
+    FlashIsothermalResult,
+    CheckFlashIsothermalResult
 )
 
 __all__ = [
@@ -13,5 +15,7 @@ __all__ = [
     "BubbleTemperatureResult",
     "DewTemperatureResult",
     "ComponentProps",
-    "Quantity"
+    "Quantity",
+    "FlashIsothermalResult",
+    "CheckFlashIsothermalResult"
 ]

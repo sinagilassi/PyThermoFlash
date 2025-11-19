@@ -10,11 +10,20 @@ from ..utils import (
     prepare_bubble_pressure_result_structure,
     prepare_dew_pressure_result_structure,
     prepare_bubble_temperature_result_structure,
-    prepare_dew_temperature_result_structure
+    prepare_dew_temperature_result_structure,
+    prepare_flash_isothermal_result_structure,
+    prepare_check_flash_isothermal_result_structure
 
 )
 from ..docs.vle import VLE
-from ..models import BubblePressureResult, DewPressureResult
+from ..models import (
+    BubblePressureResult,
+    DewPressureResult,
+    BubbleTemperatureResult,
+    DewTemperatureResult,
+    FlashIsothermalResult,
+    CheckFlashIsothermalResult
+)
 
 # NOTE: logger
 logger = logging.getLogger(__name__)
@@ -28,7 +37,8 @@ def _input_generator(
         'dpp',
         'bpt',
         'dpt',
-        'if'
+        'if',
+        'cif'
     ],
     components: List[Component],
     model_source: ModelSource,
@@ -144,7 +154,8 @@ def _input_generator(
             if (
                 model_type == 'bpp' or
                 model_type == 'dpp' or
-                model_type == 'if'
+                model_type == 'if' or
+                model_type == 'cif'
             ):
                 if temperature is None:
                     raise ValueError(
@@ -155,7 +166,8 @@ def _input_generator(
             if (
                 model_type == 'bpt' or
                 model_type == 'dpt' or
-                model_type == 'if'
+                model_type == 'if' or
+                model_type == 'cif'
             ):
                 if pressure is None:
                     raise ValueError(
@@ -411,7 +423,7 @@ def calc_dew_point_pressure(
         )
 
         # unpack inputs
-        component_ids: List[str] = input_dict['component_ids']
+        component_names: List[str] = input_dict['component_names']
         vle_model: VLE = input_dict['vle_model']
         inputs: Dict[str, Any] = input_dict['inputs']
 
@@ -428,7 +440,7 @@ def calc_dew_point_pressure(
 
             # NOTE: prepare result structure
             res = prepare_dew_pressure_result_structure(
-                component_names=component_ids,
+                component_names=component_names,
                 components=components,
                 data=res
             )
@@ -475,7 +487,7 @@ def calc_bubble_point_temperature(
     ] = 'root',
     message: str | None = None,
     **kwargs
-):
+) -> BubbleTemperatureResult | None:
     '''
     The `bubble-point temperature` (BPT) calculation determines the temperature at which the first bubble of vapor forms when a liquid mixture is heated at a constant pressure. It helps identify the temperature at which the liquid will start vaporizing.
 
@@ -508,7 +520,7 @@ def calc_bubble_point_temperature(
 
     Returns
     -------
-    res : dict
+    res : BubbleTemperatureResult | None
         Dictionary containing the results of the calculation.
         - bubble_temperature: bubble temperature [K]
         - pressure: pressure [Pa]
@@ -545,7 +557,7 @@ def calc_bubble_point_temperature(
         )
 
         # unpack inputs
-        component_ids: List[str] = input_dict['component_ids']
+        component_names: List[str] = input_dict['component_names']
         vle_model: VLE = input_dict['vle_model']
         inputs: Dict[str, Any] = input_dict['inputs']
 
@@ -563,7 +575,7 @@ def calc_bubble_point_temperature(
 
             # NOTE: prepare result structure
             res = prepare_bubble_temperature_result_structure(
-                component_names=component_ids,
+                component_names=component_names,
                 components=components,
                 data=res
             )
@@ -608,7 +620,7 @@ def calc_dew_point_temperature(
     ] = 'root',
     message: str | None = None,
     **kwargs
-):
+) -> DewTemperatureResult | None:
     '''
     The `dew-point temperature` (DPT) calculation determines the temperature at which the first drop of liquid condenses when a vapor mixture is cooled at a constant pressure. It identifies the temperature at which vapor will start to condense.
 
@@ -642,7 +654,7 @@ def calc_dew_point_temperature(
 
     Returns
     -------
-    res : dict
+    res : DewTemperatureResult | None
         Dictionary containing the results of the calculation.
         - dew_temperature: dew temperature [K]
         - pressure: pressure [Pa]
@@ -678,7 +690,7 @@ def calc_dew_point_temperature(
         )
 
         # unpack inputs
-        component_ids: List[str] = input_dict['component_ids']
+        component_names: List[str] = input_dict['component_names']
         vle_model: VLE = input_dict['vle_model']
         inputs: Dict[str, Any] = input_dict['inputs']
 
@@ -696,7 +708,7 @@ def calc_dew_point_temperature(
 
             # NOTE: prepare result structure
             res = prepare_dew_temperature_result_structure(
-                component_names=component_ids,
+                component_names=component_names,
                 components=components,
                 data=res
             )
@@ -741,7 +753,7 @@ def calc_isothermal_flash(
     flash_checker: bool = False,
     message: str | None = None,
     **kwargs
-) -> Dict[str, Any]:
+) -> FlashIsothermalResult | None:
     '''
     The `isothermal-flash` (IF) calculation This calculation determines the vapor and liquid phase compositions and amounts at a specified temperature and pressure. The system is "flashed" isothermally, meaning the temperature is kept constant while the phase behavior is calculated for a mixture.
 
@@ -778,7 +790,7 @@ def calc_isothermal_flash(
 
     Returns
     -------
-    res : dict
+    res : FlashIsothermalResult | None
         Dictionary containing the results of the calculation.
         - vapor_to_liquid_ratio: V/F ratio [dimensionless]
         - liquid_to_vapor_ratio: L/F ratio [dimensionless]
@@ -825,7 +837,7 @@ def calc_isothermal_flash(
         )
 
         # unpack inputs
-        component_ids: List[str] = input_dict['component_ids']
+        component_names: List[str] = input_dict['component_names']
         vle_model: VLE = input_dict['vle_model']
         inputs: Dict[str, Any] = input_dict['inputs']
 
@@ -841,6 +853,15 @@ def calc_isothermal_flash(
                 message=message,
                 **kwargs
             )
+
+            # NOTE: prepare result structure
+            res = prepare_flash_isothermal_result_structure(
+                component_names=component_names,
+                components=components,
+                data=res
+            )
+
+            # NOTE: return result
             return res
         except Exception as e:
             logger.error(f"IF calculation failed!, {e}")
@@ -864,7 +885,7 @@ def is_flashable(
         'Formula-Name-State'
     ] = "Name-State",
     message: str | None = None,
-) -> Dict[str, Any]:
+) -> CheckFlashIsothermalResult | None:
     '''
     Check if the mixture is flashable at the given pressure and temperature based on Raoult's law.
 
@@ -886,7 +907,7 @@ def is_flashable(
 
     Returns
     -------
-    res : dict
+    res : CheckFlashIsothermalResult | None
         Dictionary containing the flashability result.
         - is_flashable: bool indicating if the mixture is flashable
         - bubble_pressure: bubble pressure [Pa]
@@ -899,7 +920,7 @@ def is_flashable(
     try:
         # SECTION: generate inputs
         input_dict = _input_generator(
-            model_type='if',
+            model_type='cif',
             components=components,
             model_source=model_source,
             temperature=temperature,
@@ -908,7 +929,7 @@ def is_flashable(
         )
 
         # unpack inputs
-        component_ids: List[str] = input_dict['component_ids']
+        component_names: List[str] = input_dict['component_names']
         vle_model: VLE = input_dict['vle_model']
         inputs: Dict[str, Any] = input_dict['inputs']
 
@@ -919,6 +940,15 @@ def is_flashable(
                 equilibrium_model='raoult',
                 message=message,
             )
+
+            # NOTE: prepare result structure
+            res = prepare_check_flash_isothermal_result_structure(
+                component_names=component_names,
+                components=components,
+                data=res
+            )
+
+            # res
             return res
         except Exception as e:
             logger.error(f"Flashability check failed!, {e}")

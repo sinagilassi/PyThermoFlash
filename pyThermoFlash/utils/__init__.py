@@ -4,7 +4,9 @@ from .result_manager import (
     prepare_bubble_pressure_result_structure,
     prepare_dew_pressure_result_structure,
     prepare_bubble_temperature_result_structure,
-    prepare_dew_temperature_result_structure
+    prepare_dew_temperature_result_structure,
+    prepare_flash_isothermal_result_structure,
+    prepare_check_flash_isothermal_result_structure
 )
 
 __all__ = [
@@ -13,5 +15,7 @@ __all__ = [
     'prepare_bubble_pressure_result_structure',
     'prepare_dew_pressure_result_structure',
     'prepare_bubble_temperature_result_structure',
-    'prepare_dew_temperature_result_structure'
+    'prepare_dew_temperature_result_structure',
+    'prepare_flash_isothermal_result_structure',
+    'prepare_check_flash_isothermal_result_structure'
 ]

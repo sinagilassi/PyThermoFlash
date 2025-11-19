@@ -1253,7 +1253,7 @@ class VLE(Equilibria):
         -------
         res : dict
             Dictionary containing the results of the calculation.
-            - feed_mole_fraction: liquid mole fraction (zi)
+            - feed_mole_fraction: feed mole fraction (zi)
             - vapor_pressure: vapor pressure [Pa]
             - temperature: temperature [K]
             - pressure: pressure [Pa]
@@ -1378,9 +1378,7 @@ class VLE(Equilibria):
             }
 
             # NOTE: mole fractions
-            res['feed_mole_fraction'] = {
-                components[i]: mole_fractions[i] for i in range(len(components))
-            }
+            res['feed_mole_fraction'] = mole_fractions
 
             # NOTE: components
             res['components'] = components

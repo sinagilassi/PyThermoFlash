@@ -268,13 +268,85 @@ class DewTemperatureResult(BaseModel):
 #     'computation_time': {'value': 0.0022618770599365234, 'unit': 's'}
 # }
 
+# {
+#     'V_F_ratio': {'value': 0.2811011075571349, 'unit': 'dimensionless'},
+#     'L_F_ratio': {'value': 0.7188988924428651, 'unit': 'dimensionless'},
+#     'feed_mole_fraction': array([0.5, 0.5]),
+#     'liquid_mole_fraction': array([0.56207734, 0.43792266]),
+#     'vapor_mole_fraction': array([0.34124099, 0.658759  ]),
+#     'mole_fraction_sum': {'xi': 1.0000000027740075, 'yi': 0.9999999929056453, 'zi': 1.0},
+#     'vapor_pressure': {'value': array([ 4249.7478, 10529.9712]), 'unit': 'Pa'},
+#     'K_ratio': {'value': array([0.60710683, 1.5042816 ]), 'unit': 'dimensionless'},
+#     'temperature': {'value': 303.15, 'unit': 'K'},
+#     'pressure': {'value': 7000.000000000001, 'unit': 'Pa'},
+#     'activity_coefficient': {'value': array([1., 1.]), 'unit': 'dimensionless'},
+#     'solver_message': '`gtol` termination condition is satisfied.',
+#     'message': 'Flash Isothermal Calculation',
+#     'components': ['water-l', 'ethanol-l'],
+#     'equilibrium_model': 'raoult',
+#     'flash_checker': False,
+#     'flash_checker_res': None,
+#     'fugacity_model': None,
+#     'activity_model': None,
+#     'solver_method': 'least_squares',
+#     'computation_time': {'value': 0.005997419357299805, 'unit': 's'}
+# }
+
 
 class FlashIsothermalResult(BaseModel):
     model_config = ConfigDict(
         extra="allow"
     )
 
+    V_F_ratio: Quantity[float] = Field(
+        ...,
+        description="Vapor fraction ratio."
+    )
+    L_F_ratio: Quantity[float] = Field(
+        ...,
+        description="Liquid fraction ratio."
+    )
+    feed_mole_fraction: List[Component]
+    liquid_mole_fraction: List[Component]
+    vapor_mole_fraction: List[Component]
+    mole_fraction_sum: Dict[str, float]
+
+    component_props: List[ComponentProps] = Field(
+        ...,
+        description="List of component properties used in the calculation."
+    )
+
+    temperature: Temperature = Field(
+        ...,
+        description="System temperature."
+    )
+    pressure: Pressure = Field(
+        ...,
+        description="System pressure."
+    )
+    component_ids: List[str] = Field(
+        ...,
+        description="List of component IDs involved in the calculation."
+    )
+
+    equilibrium_model: str | None
+    fugacity_model: str | None
+    activity_model: str | None
+
+    flash_checker: bool | None
+    flash_checker_res: bool | None
+
+    solver_method: str | None
+    solver_message: str | None
+
     message: str
+    computation_time: Quantity[float] | None
+
+
+class CheckFlashIsothermalResult(BaseModel):
+    model_config = ConfigDict(
+        extra="allow"
+    )
 
     pressure: Pressure = Field(
         ...,
@@ -288,6 +360,7 @@ class FlashIsothermalResult(BaseModel):
         ...,
         description="List of component IDs involved in the calculation."
     )
+    components: List[Component]
 
     feed_mole_fraction: List[Component]
 
@@ -295,4 +368,5 @@ class FlashIsothermalResult(BaseModel):
 
     flash_checker_res: bool | None
 
+    message: str
     computation_time: Quantity[float] | None

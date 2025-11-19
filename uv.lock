@@ -471,11 +471,10 @@ wheels = [
 
 [[package]]
 name = "pythermoflash"
-version = "0.1.5"
+version = "0.2.1"
 source = { editable = "." }
 dependencies = [
     { name = "numpy" },
-    { name = "psutil" },
     { name = "pycuc" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
@@ -486,10 +485,20 @@ dependencies = [
     { name = "scipy" },
 ]
 
+[package.optional-dependencies]
+dev = [
+    { name = "psutil" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "psutil" },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "numpy", specifier = ">=2.3.5" },
-    { name = "psutil", specifier = ">=7.1.3" },
+    { name = "psutil", marker = "extra == 'dev'", specifier = ">=7.1.3" },
     { name = "pycuc", specifier = ">=2.1.0" },
     { name = "pydantic", specifier = ">=2.12.4" },
     { name = "pydantic-settings", specifier = ">=2.12.0" },
@@ -499,6 +508,10 @@ requires-dist = [
     { name = "pythermomodels", specifier = ">=1.5.6" },
     { name = "scipy", specifier = ">=1.16.3" },
 ]
+provides-extras = ["dev"]
+
+[package.metadata.requires-dev]
+dev = [{ name = "psutil", specifier = ">=7.1.3" }]
 
 [[package]]
 name = "pythermolinkdb"
