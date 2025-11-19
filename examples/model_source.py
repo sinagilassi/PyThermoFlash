@@ -70,8 +70,8 @@ water = Component(
 components_list: List[Component] = [
     ethanol,
     water,
-    benzene,
-    toluene
+    # benzene,
+    # toluene
 ]
 
 # =======================================
