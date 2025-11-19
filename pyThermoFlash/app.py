@@ -5,9 +5,11 @@ from .docs import VLE
 from .utils import model_source_checker
 
 
-def vle(components: List[str],
-        model_source: Optional[Dict] = None,
-        **kwargs) -> VLE:
+def vle(
+    components: List[str],
+    model_source: Optional[Dict] = None,
+    **kwargs
+) -> VLE:
     '''
     VLE model for vapor-liquid equilibrium (VLE) calculations for
     multi-component systems.
