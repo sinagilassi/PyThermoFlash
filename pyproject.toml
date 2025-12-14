@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pyThermoFlash"
-version = "0.2.2"
+version = "0.2.3"
 description = "PyThermoFlash is a powerful and user-friendly computational tool tailored for engineers, researchers, and scientists working with thermodynamic systems. It specializes in performing bubble-point, dew-point, and flash calculations, which are essential for determining the equilibrium state of mixtures under specified conditions. With support for various thermodynamic models, PyThermoFlash ensures accurate predictions of phase behavior and properties for complex fluid systems."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -44,13 +44,13 @@ classifiers = [
 dependencies = [
     "numpy>=2.3.5",
     "scipy>=1.16.3",
-    "pycuc>=2.1.0",
     "pydantic>=2.12.4",
-    "pythermodb>=1.11.53",
-    "pythermodb-settings>=0.1.9",
     "pydantic-settings>=2.12.0",
-    "pythermolinkdb>=1.3.11",
-    "pythermomodels>=1.5.6",
+    "pycuc",
+    "pythermodb",
+    "pythermodb-settings",
+    "pythermolinkdb",
+    "pythermomodels",
 ]
 
 [project.optional-dependencies]
