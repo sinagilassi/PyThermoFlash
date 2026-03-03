@@ -1258,7 +1258,7 @@ class Equilibria:
                 pass  # already calculated
 
             # NOTE: k-ratio
-            K_i = np.multiply(x_i, 1/z_i)
+            K_i = np.multiply(z_i, 1/x_i)
 
             # NOTE: results
             res = {
