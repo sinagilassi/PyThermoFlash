@@ -17,9 +17,12 @@ class Source:
         self.model_source = model_source
 
         # NOTE: source
-        # set
-        self._datasource, self._equationsource = self.set_source(
-            model_source=model_source)
+        # >> check
+        if model_source is not None:
+            # set
+            self._datasource, self._equationsource = self.set_source(
+                model_source=model_source
+            )
 
     def __repr__(self):
         des = "Source class for the pyThermoFlash package."

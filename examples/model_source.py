@@ -15,7 +15,7 @@ from pyThermoDB import build_component_thermodb_from_reference, ComponentThermoD
 from rich import print
 # thermo flash
 import pyThermoFlash as ptf
-from reference_content import REFERENCE_CONTENT
+from reference_content_0 import REFERENCE_CONTENT
 
 # NOTE: set logging level
 logging.basicConfig()
@@ -70,8 +70,8 @@ water = Component(
 components_list: List[Component] = [
     ethanol,
     water,
-    # benzene,
-    # toluene
+    benzene,
+    toluene
 ]
 
 # =======================================

@@ -242,7 +242,10 @@ class VLE(Equilibria):
             mole_fractions = inputs['mole_fraction']
             # NOTE: temperature [K]
             temperature = pycuc.convert_from_to(
-                inputs['temperature'][0], inputs['temperature'][1], 'K')
+                inputs['temperature'][0],
+                inputs['temperature'][1],
+                'K'
+            )
 
             # check mole fractions
             if not isinstance(mole_fractions, dict):
