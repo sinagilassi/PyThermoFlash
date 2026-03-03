@@ -1570,7 +1570,7 @@ class Equilibria:
 
         return [loss]
 
-    def fDT3(self, x, params) -> float:
+    def fDT3(self, x, params) -> np.ndarray:
         '''
         dew temperature function using modified raoult'law assumption, a system of equations is solved to find the dew temperature and liquid mole fraction.
 
@@ -1598,7 +1598,8 @@ class Equilibria:
         x_i[-1] = 1 - np.sum(x_i[:-1])
 
         if np.any(x_i <= 1e-8) or T < 200 or T > 1000:
-            return [1e6]
+            # Return a full residual vector with the expected dimension.
+            return np.full(self.component_num, 1e6, dtype=float)
 
         # NOTE: params
         # equilibrium model
