@@ -7,8 +7,11 @@
 ![Python Version](https://img.shields.io/pypi/pyversions/PyThermoFlash.svg)
 ![License](https://img.shields.io/pypi/l/PyThermoFlash)
 ![Read the Docs](https://img.shields.io/readthedocs/PyThermoFlash)
+[![Download on the App Store](https://img.shields.io/badge/Download_on_the_App_Store-0D0D0D?logo=apple&logoColor=white)](https://apps.apple.com/ca/app/mozithermocalc/id6759209992)
 
 PyThermoFlash is a powerful and user-friendly computational tool tailored for engineers, researchers, and scientists working with thermodynamic systems. It specializes in performing bubble-point, dew-point, and flash calculations, which are essential for determining the equilibrium state of mixtures under specified conditions. With support for various thermodynamic models, PyThermoFlash ensures accurate predictions of phase behavior and properties for complex fluid systems.
+
+Calculations can also be done on your mobile with the MoziThermoCalc iOS app: [Download on the App Store](https://apps.apple.com/ca/app/mozithermocalc/id6759209992).
 
 ## 🔎 Thermodynamic Calculations in PyThermoFlash
 
